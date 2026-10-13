@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "deploy.config.json",
+  "description": "SuperOffice tenants this app can be deployed to. Deploy with: npm run deploy <target>",
+  "type": "object",
+  "required": ["appName", "devTarget", "targets"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Path to this schema."
+    },
+    "appName": {
+      "type": "string",
+      "description": "Must equal name in package.json.",
+      "minLength": 1
+    },
+    "devTarget": {
+      "type": "string",
+      "description": "\"npm run deploy\" will deploy to this target without confirmation. Empty: a target must always be named.",
+      "examples": ["dev"]
+    },
+    "targets": {
+      "type": "object",
+      "description": "Tenants, keyed by target name.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Tenant URL, as shown in the address bar. Redirects are followed.",
+            "pattern": "^https://[^\\s]+$",
+            "examples": [
+              "https://sod.superoffice.com/Cust12345/",
+              "https://online.superoffice.com/Cust12345/"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

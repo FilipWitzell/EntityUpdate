@@ -1,0 +1,48 @@
+# Local secrets and environment configuration
+.env
+.env.*
+!.env.example
+*.local
+
+# SuperOffice dev-login browser profile - holds a logged-in session, never commit (see scripts/fetch-cookies.mjs)
+.dev-cookies-profile/
+
+# Deploy backups - a customer's replaced bundles (see scripts/deploy-config.mjs)
+.deploy-backups/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+.DS_Store
+dist
+dist-ssr
+coverage
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.tsbuildinfo
+.eslintcache
+
+# Vitest
+__screenshots__/
+
+# Vite
+*.timestamp-*-*.mjs
+
+# Internal one-pager (Claude Design source and screenshots) - kept locally, not in git
+docs/onepager/

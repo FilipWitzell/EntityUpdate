@@ -1,0 +1,143 @@
+%EJSCRIPT_START%
+<%
+#setLanguageLevel 4;
+
+/*
+    Cloud Connection Vue App Loader
+    Espen Steen, September 2026
+
+    Serves any Vue app stored in Blob Storage on this tenant.
+
+    The Vue app is opened by requesting the HTML file:
+    .../CS/scripts/blogic.fcgi?action=doScript&includeId=vue-app-loader&app=<appName>
+
+    Optional: &title=<title> sets the page title.
+
+    Then the browser will request this same script to get the JS and CSS files, by using:
+        &file=js     the app's JavaScript, as text/javascript
+        &file=css    the app's CSS, as text/css
+
+    <appName> is the name the app was deployed as. Its built files are the blobs with conceptual
+    type "ccApp..<appName>..build-js" and "ccApp..<appName>..style-css".
+*/
+
+// Blob storage names
+String CONCEPTUAL_TYPE_PREFIX = "ccApp..";
+String JS_CONCEPTUAL_TYPE_SUFFIX = "..build-js";
+String CSS_CONCEPTUAL_TYPE_SUFFIX = "..style-css";
+
+// The URL Param values used to request JS and CSS files.
+String JS_FILE = "js";
+String CSS_FILE = "css";
+
+// This script's own URL
+String LOADER_URL = "blogic.fcgi?action=doScript&includeId=" + getCgiVariable("includeId");
+
+// Returns the ID of the blob with a conceptual type
+Integer getBlobId(String fileName, String conceptualType)
+{
+    if (fileName.isEmpty())
+        throw "No file name provided";
+
+    if (conceptualType.isEmpty())
+        throw "No conceptual type provided";
+
+    SearchEngine se;
+    se.addField("BinaryObject.BinaryObject_id");
+    se.addCriteria("BinaryObject.conceptualType", "Equals", conceptualType);
+    se.addOrder("BinaryObject.BinaryObject_id", False);
+
+    if (se.select() > 0)
+        return se.getField("BinaryObject.BinaryObject_id").toInteger();
+
+    throw fileName + " was not found in BinaryObject.";
+}
+
+// Returns a blob's contents as text. utf8Decode() undoes one encoding pass: the blob holds UTF-8,
+// and the response layer encodes what it prints to UTF-8 again, so without this every non-ASCII
+// character comes out double-encoded - "ø" as "Ã¸".
+String getBlobContent(Integer blobId)
+{
+    NSBLOBAgent blobAgent;
+    NSStream stream = blobAgent.GetBlobStream(blobId);
+    return String(stream.GetStream()).utf8Decode();
+}
+
+// Sets the content type of the response, used for JS and CSS mode.
+// The charset has to be here: this replaces the tenant's own headers, which carried charset=UTF-8,
+// and without it the browser falls back to a legacy encoding and mangles every non-ASCII character.
+Void setResponseContentType(String contentType)
+{
+    setParserVariable("ej.headers", "Status: 200 OK\nContent-Type: " + contentType + "; charset=UTF-8\n");
+}
+
+// Returns CSS or JS response.
+Void printAppFile(String appName, String fileName, String conceptualTypeSuffix, String contentType)
+{
+    Integer blobId = getBlobId(fileName, CONCEPTUAL_TYPE_PREFIX + appName + conceptualTypeSuffix);
+
+    setResponseContentType(contentType);
+    print(getBlobContent(blobId));
+}
+
+// The app name. Title param can override it.
+String getPageTitle(String appName)
+{
+    String pageTitle = getCgiVariable("title");
+
+    if (pageTitle.isEmpty())
+        pageTitle = appName;
+
+    return pageTitle;
+}
+
+// Prints the HTML the app mounts into.
+// Page includes URLs back to this same script for the JS and CSS documents.
+Void printPage(String appName)
+{
+    String appUrl = LOADER_URL + "&amp;app=" + appName.htmlEncode();
+    String pageTitle = getPageTitle(appName);
+    String favIcon = getProgramTicket().before("CS/scripts") + "favicon.svg";
+
+    String content;
+    content.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
+    content.append("<meta charset=\"UTF-8\">\n");
+    content.append("<link rel=\"icon\" href=\"" + favIcon + "\">\n");
+    content.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
+    content.append("<title>" + pageTitle.htmlEncode() + "</title>\n");
+    content.append("<link rel=\"stylesheet\" href=\"" + appUrl + "&amp;file=" + CSS_FILE + "\">\n");
+    content.append("<script type=\"module\" src=\"" + appUrl + "&amp;file=" + JS_FILE + "\"></script>\n");
+    content.append("</head>\n<body>\n<div id=\"app\"></div>\n</body>\n</html>\n");
+
+    print(content);
+}
+
+Void main()
+{
+    String appName = getCgiVariable("app");
+
+    if (appName.isEmpty())
+        return print("Unknown app");
+
+    String fileName = getCgiVariable("file");
+
+    // HTML Mode
+    if (fileName.isEmpty())
+        return printPage(appName);
+
+    // JS Mode
+    if (fileName == JS_FILE)
+        return printAppFile(appName, JS_FILE, JS_CONCEPTUAL_TYPE_SUFFIX, "text/javascript");
+
+    // CSS Mode
+    if (fileName == CSS_FILE)
+        return printAppFile(appName, CSS_FILE, CSS_CONCEPTUAL_TYPE_SUFFIX, "text/css");
+
+    // Error
+    print("Unknown file");
+}
+
+main();
+
+%>
+%EJSCRIPT_END%

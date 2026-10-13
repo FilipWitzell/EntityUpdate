@@ -1,0 +1,8 @@
+{
+  "$schema": "./deploy.config.schema.json",
+  "appName": "entity-update",
+  "devTarget": "cust30460",
+  "targets": {
+    "cust30460": { "url": "https://app.superoffice.com/Cust30460/" }
+  }
+}
