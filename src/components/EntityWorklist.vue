@@ -113,7 +113,9 @@
   const associates: Ref<ListItem[]> = ref([]);
   const selections: Ref<ListItem[]> = ref([]);
 
-  const selectedId: ComputedRef<number | undefined> = computed(() => (items.value.some((item) => item.id === props.activeId) ? props.activeId : undefined));
+  const selectedId: ComputedRef<number | undefined> = computed(() =>
+    items.value.some((item) => item.id === props.activeId) ? props.activeId : undefined
+  );
   const index: ComputedRef<number> = computed(() => items.value.findIndex((item) => item.id === props.activeId));
   const otherAssociates: ComputedRef<ListItem[]> = computed(() => associates.value.filter((associate) => associate.id !== currentAssociateId.value));
 

@@ -15,11 +15,15 @@
             :before-change="confirmLeave"
             @select="switchRecord"
           />
-          <span v-if="demo" class="pill pill-demo" title="Demo med testdata"><PhFlask :size="12" weight="bold" /><span class="pill-text">Demo</span></span>
+          <span v-if="demo" class="pill pill-demo" title="Demo med testdata"
+            ><PhFlask :size="12" weight="bold" /><span class="pill-text">Demo</span></span
+          >
           <span v-else-if="IN_DEV_MODE" class="pill pill-connected" :title="`Koblet til ${tenantName}`">
             <PhPlugsConnected :size="12" weight="bold" /><span class="pill-text">{{ tenantName }}</span>
           </span>
-          <span v-if="readOnly" class="pill pill-readonly" title="Lesemodus - ingenting lagres"><PhLock :size="12" weight="bold" /><span class="pill-text">Lesemodus</span></span>
+          <span v-if="readOnly" class="pill pill-readonly" title="Lesemodus - ingenting lagres"
+            ><PhLock :size="12" weight="bold" /><span class="pill-text">Lesemodus</span></span
+          >
           <el-button size="small" circle title="Tilpass felter" aria-label="Tilpass felter" @click="layoutOpen = true">
             <PhGearSix :size="14" weight="bold" />
           </el-button>
@@ -53,7 +57,12 @@
               v-for="row in group.rows"
               :key="row.definition.key"
               class="field-grid field-row"
-              :class="{ changed: row.shouldUpdate, missing: isMissing(row), attention: isMissing(row) && attentionPulse, longtext: row.definition.kind === 'longtext' }"
+              :class="{
+                changed: row.shouldUpdate,
+                missing: isMissing(row),
+                attention: isMissing(row) && attentionPulse,
+                longtext: row.definition.kind === 'longtext'
+              }"
             >
               <span class="field-label cell-label">
                 {{ row.definition.label }}
@@ -84,14 +93,7 @@
       </section>
 
       <footer class="summary">
-        <el-alert
-          v-if="saveBlocked && missingText"
-          type="error"
-          :title="missingText"
-          show-icon
-          class="summary-alert"
-          @close="saveBlocked = false"
-        />
+        <el-alert v-if="saveBlocked && missingText" type="error" :title="missingText" show-icon class="summary-alert" @close="saveBlocked = false" />
 
         <div v-if="showChanges && changedRows.length > 0" class="change-list">
           <div v-for="row in changedRows" :key="row.definition.key" class="change-line">
@@ -172,6 +174,7 @@
   import { EntityChangedError } from "@/agents/EntityChangedError";
   import { ENTITIES, ENTITY_DEMOS } from "@/config/entities";
   import { applyLayout, completeLayout, withStandardMinimum } from "@/config/fieldLayout";
+  import { optionListKey } from "@/config/entityValues";
   import { jumpTo } from "@/services/so-cross-messaging";
   import { IN_DEV_MODE, SUPEROFFICE_URL } from "@/superoffice-config/superoffice-config";
   import { DEV_SUPEROFFICE_URL } from "@/superoffice-config/superoffice-url";
@@ -379,7 +382,8 @@
   }
 
   function optionsFor(row: FieldRow): ListItem[] {
-    return row.definition.mdoList ? (options.value?.[row.definition.mdoList] ?? []) : [];
+    const key = optionListKey(row.definition);
+    return key ? (options.value?.[key] ?? []) : [];
   }
 
   /** A new value switches the row on automatically - unless it is set back to the current value. */

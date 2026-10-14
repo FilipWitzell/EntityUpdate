@@ -8,9 +8,20 @@ import type { FieldValue } from "@/types/Fields";
  * the agent so it can be tested on its own.
  */
 
+/** Where a field's values are picked from: an MDO list ("category") or an extra table ("extra:y_product"). */
+export function optionListKey(definition: EntityFieldDefinition): string | null {
+  if (definition.extraTable) return `extra:${definition.extraTable.table}`;
+  return definition.mdoList ?? null;
+}
+
 /** The value of one field on the entity, in the panel's form (ids, ISO dates, 1/0). */
 export function readField(entity: RestEntity, definition: EntityFieldDefinition): FieldValue {
   if (definition.udef) return decodeUdefValue(entity.CustomFields?.[definition.udef.progId]);
+  if (definition.customField) {
+    const value = decodeUdefValue(entity.CustomFields?.[definition.customField]);
+    // A relation with no row is stored as 0.
+    return definition.kind === "select" && !value ? null : value;
+  }
   if (!definition.property) return null;
 
   const raw = entity[definition.property];
@@ -45,6 +56,17 @@ export function writeValues(entity: RestEntity, changes: EntityValues, definitio
       entity.CustomFields = { ...entity.CustomFields, [definition.udef.progId]: encoded };
       if (entity.UserDefinedFields && definition.udef.progId in entity.UserDefinedFields) {
         entity.UserDefinedFields = { ...entity.UserDefinedFields, [definition.udef.progId]: encoded };
+      }
+      continue;
+    }
+
+    if (definition.customField) {
+      // A relation is a row id, stored like a whole number; no row is 0.
+      const encoded = definition.kind === "select" ? `[I:${Number(value ?? 0)}]` : encodeUdefValue(definition, value);
+      entity.CustomFields = { ...entity.CustomFields, [definition.customField]: encoded };
+      // The old ExtraFields collection comes back on the entity too; keep it from holding the previous value.
+      if (entity.ExtraFields && definition.customField in entity.ExtraFields) {
+        entity.ExtraFields = { ...entity.ExtraFields, [definition.customField]: encoded };
       }
       continue;
     }

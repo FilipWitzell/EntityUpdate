@@ -2,7 +2,7 @@ import { SuperOfficeAgent, restApiDefaultHeaders } from "@/agents/SuperOfficeAge
 import { LayoutPreferences } from "@/agents/LayoutPreferences";
 import { fetchMDOList, fetchUdefColumns } from "@/agents/superOfficeLists";
 import { EntityChangedError } from "@/agents/EntityChangedError";
-import { readValues, writeValues } from "@/config/entityValues";
+import { optionListKey, readValues, writeValues } from "@/config/entityValues";
 import type { SuperOfficeObject } from "@/types/SuperOfficeObject";
 import type { FieldLayouts, LayoutLevel, ListItem, SavedLayout } from "@/types/Fields";
 import type {
@@ -14,9 +14,6 @@ import type {
   RestEntity,
   WorklistItem
 } from "@/types/EntityQuickUpdate";
-
-/** The parts every REST entity has that the panel uses for spotting someone else's save. */
-type SavedBy = { UpdatedDate?: string; UpdatedBy?: { FullName?: string } | null };
 
 /** Reads and updates one kind of entity through the SuperOffice REST API, as the logged in user, driven by its config. */
 export class EntityAgent implements EntityDataSource {
@@ -38,15 +35,24 @@ export class EntityAgent implements EntityDataSource {
       title: this.config.titleOf(entity),
       subtitle: this.config.subtitleOf(entity),
       values: readValues(entity, this.config.fields),
-      updatedAt: entity.UpdatedDate ?? "",
-      updatedBy: entity.UpdatedBy?.FullName ?? ""
+      ...this.savedBy(entity)
     };
   }
 
+  /** Every list the fields pick from: MDO lists, and rows of extra tables. Read once per panel. */
   async GetOptions(): Promise<Record<string, ListItem[]>> {
-    const listNames = [...new Set(this.config.fields.flatMap((field) => (field.mdoList ? [field.mdoList] : [])))];
-    const lists = await Promise.all(listNames.map((name) => fetchMDOList(this.agent, name)));
-    return Object.fromEntries(listNames.map((name, index) => [name, lists[index]!]));
+    const fields = [
+      ...new Map(
+        this.config.fields.flatMap((field) => {
+          const key = optionListKey(field);
+          return key ? [[key, field] as const] : [];
+        })
+      ).entries()
+    ];
+    const lists = await Promise.all(
+      fields.map(([, field]) => (field.extraTable ? this.fetchExtraTableRows(field.extraTable) : fetchMDOList(this.agent, field.mdoList!)))
+    );
+    return Object.fromEntries(fields.map(([key], index) => [key, lists[index]!]));
   }
 
   async GetUdefDefinitions(): Promise<EntityFieldDefinition[]> {
@@ -126,8 +132,9 @@ export class EntityAgent implements EntityDataSource {
   /** Fetches the whole entity, applies the changes and saves it back (REST PUT needs the full entity). */
   async Update(id: number, changes: EntityValues, definitions: EntityFieldDefinition[], expectedUpdatedAt?: string): Promise<void> {
     const entity = await this.fetchEntity(id);
-    if (expectedUpdatedAt !== undefined && (entity.UpdatedDate ?? "") !== expectedUpdatedAt) {
-      throw new EntityChangedError(entity.UpdatedBy?.FullName ?? "", entity.UpdatedDate ?? "");
+    const saved = this.savedBy(entity);
+    if (expectedUpdatedAt !== undefined && saved.updatedAt !== expectedUpdatedAt) {
+      throw new EntityChangedError(saved.updatedBy, saved.updatedAt);
     }
     await this.agent.Request({
       method: "PUT",
@@ -137,8 +144,32 @@ export class EntityAgent implements EntityDataSource {
     });
   }
 
-  private async fetchEntity(id: number): Promise<RestEntity & SavedBy> {
-    return (await this.agent.GetEntityById({ entity: this.config.restEntity, id })) as RestEntity & SavedBy;
+  private async fetchEntity(id: number): Promise<RestEntity> {
+    return (await this.agent.GetEntityById({ entity: this.config.restEntity, id })) as RestEntity;
+  }
+
+  /** When and by whom the entity was last saved. An entity without these properties is never seen as changed. */
+  private savedBy(entity: RestEntity): { updatedAt: string; updatedBy: string } {
+    const at = entity[this.config.updatedAtProperty ?? "UpdatedDate"];
+    const by = entity[this.config.updatedByProperty ?? "UpdatedBy"] as { FullName?: string } | null | undefined;
+    return { updatedAt: typeof at === "string" ? at : "", updatedBy: by?.FullName ?? "" };
+  }
+
+  /**
+   * The rows of an extra table, through the dynamic archive: id and the field shown, sorted by it.
+   * The archive names its columns "<table>.<field>"; a plain "<field>" is read too.
+   */
+  private async fetchExtraTableRows(extraTable: { table: string; displayField: string }): Promise<ListItem[]> {
+    const { table, displayField } = extraTable;
+    const rows = await this.agent.QueryEntities({
+      entity: "Archive/dynamic",
+      select: `${table}.id,${table}.${displayField}`,
+      orderBy: `${table}.${displayField} asc`,
+      top: 1000
+    });
+    return rows
+      .map((row) => ({ id: Number(row[`${table}.id`] ?? row.id), name: String(row[`${table}.${displayField}`] ?? row[displayField] ?? "") }))
+      .filter((row) => row.id > 0);
   }
 
   private worklistColumns(): string {

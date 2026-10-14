@@ -17,6 +17,8 @@ const router = createRouter({
         if (saleId) return { name: "saleQuickUpdate", params: { saleId } };
         const contactId = params.get("contactId");
         if (contactId) return { name: "contactQuickUpdate", params: { id: contactId } };
+        const ticketId = params.get("ticketId");
+        if (ticketId) return { name: "ticketQuickUpdate", params: { id: ticketId } };
       }
     },
     {
@@ -44,6 +46,20 @@ const router = createRouter({
       name: "contactQuickUpdateDemo",
       component: EntityQuickUpdateView,
       props: { entity: "contact", id: "2001", demo: true }
+    },
+    {
+      // Web panel on the ticket: ...&ticketId=<tiid>, or .../#/ticket/<tiid>
+      path: "/ticket/:id",
+      name: "ticketQuickUpdate",
+      component: EntityQuickUpdateView,
+      props: (route) => ({ entity: "ticket", id: String(route.params.id) })
+    },
+    {
+      // The ticket panel with demo data
+      path: "/demo/ticket",
+      name: "ticketQuickUpdateDemo",
+      component: EntityQuickUpdateView,
+      props: { entity: "ticket", id: "48213", demo: true }
     },
     {
       // Same panel with demo data, for showing it without a SuperOffice tenant
