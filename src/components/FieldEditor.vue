@@ -95,7 +95,7 @@
 
 <script lang="ts" setup>
   import { computed, ref } from "vue";
-  import type { FieldKind, FieldValue, ListItem } from "@/types/SaleQuickUpdate";
+  import type { FieldKind, FieldValue, ListItem } from "@/types/Fields";
 
   const props = defineProps<{
     kind: FieldKind;

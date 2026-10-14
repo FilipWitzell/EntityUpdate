@@ -1,3 +1,17 @@
+import type { FieldDefinition, FieldLayouts, FieldValue, LayoutLevel, ListItem, SavedLayout } from "@/types/Fields";
+
+export type {
+  ActivityDisplay,
+  FieldKind,
+  FieldLayout,
+  FieldLayoutEntry,
+  FieldLayouts,
+  FieldValue,
+  LayoutLevel,
+  ListItem,
+  SavedLayout
+} from "@/types/Fields";
+
 /** Keys for the built-in sale values the quick update panel can show and change. */
 export type SaleFieldKey =
   | "heading"
@@ -21,25 +35,12 @@ export type SaleFieldKey =
 /** A built-in field, or a user-defined field on the sale: "udef:<progId>" (e.g. "udef:SuperOffice:3"). */
 export type FieldKey = SaleFieldKey | `udef:${string}`;
 
-/** How a field is edited in the panel. */
-export type FieldKind = "text" | "longtext" | "amount" | "number" | "percent" | "date" | "checkbox" | "select" | "project" | "contact" | "person";
-
 /** The lists the panel loads in the background so values can be picked quickly. */
 export type ListName = "stage" | "associate" | "saleType" | "source" | "competitor" | "status" | "reasonSold" | "reasonLost" | "reasonStalled";
 
 export type SaleStatus = "Open" | "Sold" | "Lost" | "Stalled";
 
-/** Ids for list values, ISO date (YYYY-MM-DD) for dates, 1/0 for checkboxes, plain text/number otherwise. */
-export type FieldValue = string | number | null;
-
 export type SaleValues = Record<string, FieldValue>;
-
-export interface ListItem {
-  id: number | string;
-  name: string;
-  /** Only on sale stages: the default probability for the stage. */
-  probability?: number;
-}
 
 export type SaleOptions = Record<ListName, ListItem[]> & {
   /**
@@ -49,49 +50,13 @@ export type SaleOptions = Record<ListName, ListItem[]> & {
   stagesBySaleType: Record<string, ListItem[]>;
 };
 
-export interface SaleFieldDefinition {
+export interface SaleFieldDefinition extends FieldDefinition {
   key: FieldKey;
-  label: string;
-  kind: FieldKind;
-  /** Which group the field is shown under in the panel. */
-  group: string;
-  /** Important fields are marked in red when they have no value, so they get maintained. */
-  important?: boolean;
-  /** Hidden until someone turns it on in the field picker. */
-  hiddenByDefault?: boolean;
   /** Which list the values are picked from, for kind "select". */
   list?: ListName;
   /** Shown only while the sale has (or is set to) this status - e.g. the reopen date for stalled sales. */
   showWhenStatus?: SaleStatus;
-  /** Only on user-defined fields: how SuperOffice stores the value. */
-  udef?: { progId: string; numberType?: "int" | "decimal" };
 }
-
-/** A field's place in a layout: shown or not, marked important or not, in list order. */
-export interface FieldLayoutEntry {
-  key: FieldKey;
-  visible: boolean;
-  important: boolean;
-}
-
-export type FieldLayout = FieldLayoutEntry[];
-
-/** How much of the next activity the panel shows: the date, the date and type, or date, type and description. */
-export type ActivityDisplay = "date" | "type" | "full";
-
-/** A saved layout: the fields, and the panel settings kept with them. null means "not chosen here". */
-export interface SavedLayout {
-  fields: FieldLayout;
-  activityDisplay: ActivityDisplay | null;
-}
-
-/** The two layouts: the standard an admin sets for everyone, and the user's own. */
-export interface FieldLayouts {
-  standard: SavedLayout | null;
-  personal: SavedLayout | null;
-}
-
-export type LayoutLevel = "standard" | "personal";
 
 /** A sale as the panel sees it: the values plus what is needed to display them. */
 export interface SaleSnapshot {

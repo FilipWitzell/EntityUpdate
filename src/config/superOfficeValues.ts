@@ -1,4 +1,4 @@
-import type { FieldValue, SaleFieldDefinition } from "@/types/SaleQuickUpdate";
+import type { FieldDefinition, FieldValue } from "@/types/Fields";
 
 /**
  * How SuperOffice writes values and names, kept apart from the agents so it can be tested on its own.
@@ -18,7 +18,7 @@ export function decodeUdefValue(raw: string | null | undefined): FieldValue {
   return raw;
 }
 
-export function encodeUdefValue(definition: SaleFieldDefinition, value: FieldValue): string {
+export function encodeUdefValue(definition: Pick<FieldDefinition, "kind" | "udef">, value: FieldValue): string {
   if (definition.kind === "date") {
     if (!value) return "[DT:01/01/0001 00:00:00.0000000]";
     const [year, month, day] = String(value).split("-");

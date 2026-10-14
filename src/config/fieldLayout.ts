@@ -1,4 +1,4 @@
-import type { ActivityDisplay, FieldKey, FieldLayout, SaleFieldDefinition, SavedLayout } from "@/types/SaleQuickUpdate";
+import type { ActivityDisplay, FieldDefinition, FieldLayout, SavedLayout } from "@/types/Fields";
 
 /** What the next activity row shows when no layout says otherwise. */
 export const DEFAULT_ACTIVITY_DISPLAY: ActivityDisplay = "type";
@@ -31,7 +31,7 @@ export function decodeLayout(raw: string | null | undefined): SavedLayout | null
     .map((token) => {
       const visible = !token.startsWith("-");
       const important = token.endsWith("!");
-      const key = token.replace(/^-/, "").replace(/!$/, "") as FieldKey;
+      const key = token.replace(/^-/, "").replace(/!$/, "");
       return { key, visible, important };
     });
   const activityDisplay = ACTIVITY_DISPLAYS.find((display) => display === activityValue) ?? null;
@@ -39,7 +39,7 @@ export function decodeLayout(raw: string | null | undefined): SavedLayout | null
 }
 
 /** The built-in layout: fields in their defined order, shown unless hidden by default. */
-export function defaultLayout(definitions: SaleFieldDefinition[]): FieldLayout {
+export function defaultLayout(definitions: FieldDefinition[]): FieldLayout {
   return definitions.map((definition) => ({
     key: definition.key,
     visible: !definition.hiddenByDefault,
@@ -52,7 +52,7 @@ export function defaultLayout(definitions: SaleFieldDefinition[]): FieldLayout {
  * layout does not know yet (new user-defined fields) as they are by default. Keys of fields that no
  * longer exist are dropped.
  */
-export function completeLayout(definitions: SaleFieldDefinition[], layout: FieldLayout | null): FieldLayout {
+export function completeLayout(definitions: FieldDefinition[], layout: FieldLayout | null): FieldLayout {
   const defaults = defaultLayout(definitions);
   if (!layout) return defaults;
 
@@ -63,7 +63,7 @@ export function completeLayout(definitions: SaleFieldDefinition[], layout: Field
 }
 
 /** The fields to show, in layout order, with the layout's choice of important fields. */
-export function applyLayout(definitions: SaleFieldDefinition[], layout: FieldLayout | null): SaleFieldDefinition[] {
+export function applyLayout<D extends FieldDefinition>(definitions: D[], layout: FieldLayout | null): D[] {
   const byKey = new Map(definitions.map((definition) => [definition.key, definition]));
   return completeLayout(definitions, layout)
     .filter((entry) => entry.visible)

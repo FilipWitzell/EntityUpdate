@@ -18,7 +18,7 @@
         title="Du har eget oppsett, så endringer her vises ikke for deg før du trykker «Bruk standard» under Mitt oppsett."
       />
 
-      <div class="activity-setting">
+      <div v-if="activitySetting" class="activity-setting">
         <span class="activity-setting-label">Neste aktivitet viser</span>
         <el-select v-model="activityDisplay" size="small" class="activity-setting-select" aria-label="Neste aktivitet viser">
           <el-option v-for="option in ACTIVITY_OPTIONS" :key="option.value" :value="option.value" :label="option.label" />
@@ -93,7 +93,7 @@
               v-else
               v-model="entry.important"
               :disabled="!entry.visible"
-              :title="entry.visible ? 'Salget kan ikke lagres før feltet er fylt ut' : 'Feltet må vises først'"
+              :title="entry.visible ? `${entityDefinite ?? 'Salget'} kan ikke lagres før feltet er fylt ut` : 'Feltet må vises først'"
               :aria-label="`${labelOf(entry.key)} blokkerer lagring`"
             />
           </span>
@@ -115,7 +115,7 @@
   import { computed, ref, type ComputedRef, type Ref } from "vue";
   import { PhArrowDown, PhArrowUp, PhStar } from "@phosphor-icons/vue";
   import { completeLayout, DEFAULT_ACTIVITY_DISPLAY, withStandardMinimum } from "@/config/fieldLayout";
-  import type { ActivityDisplay, FieldKey, FieldLayout, FieldLayouts, LayoutLevel, SaleFieldDefinition, SavedLayout } from "@/types/SaleQuickUpdate";
+  import type { ActivityDisplay, FieldDefinition, FieldLayout, FieldLayouts, LayoutLevel, SavedLayout } from "@/types/Fields";
 
   const ACTIVITY_OPTIONS: { value: ActivityDisplay; label: string }[] = [
     { value: "date", label: "Bare dato" },
@@ -125,8 +125,12 @@
 
   const props = defineProps<{
     modelValue: boolean;
-    definitions: SaleFieldDefinition[];
+    definitions: FieldDefinition[];
     layouts: FieldLayouts;
+    /** The setting for how much of the next activity to show - only sales have that row. */
+    activitySetting?: boolean;
+    /** "Salget", "Firmaet" - for the explanation of fields that block saving. */
+    entityDefinite?: string;
     canEditStandard: boolean;
     saving: boolean;
   }>();
@@ -190,7 +194,7 @@
   );
 
   /** What the standard requires of a field: shown, and/or important. */
-  function requiredBy(key: FieldKey): { visible: boolean; important: boolean } {
+  function requiredBy(key: string): { visible: boolean; important: boolean } {
     const entry = standardMinimum.value?.find((item) => item.key === key);
     return { visible: !!entry?.visible, important: !!entry?.important };
   }
@@ -208,11 +212,11 @@
     entries.value = order.flatMap((name) => entries.value.filter((entry) => groupOf(entry.key) === name));
   }
 
-  function labelOf(key: FieldKey): string {
+  function labelOf(key: string): string {
     return props.definitions.find((definition) => definition.key === key)?.label ?? key;
   }
 
-  function groupOf(key: FieldKey): string {
+  function groupOf(key: string): string {
     return props.definitions.find((definition) => definition.key === key)?.group ?? "";
   }
 

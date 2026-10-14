@@ -70,7 +70,7 @@
                     @change="(on: string | number | boolean) => onToggle(row, Boolean(on))"
                   />
                 </span>
-                <SaleFieldEditor
+                <FieldEditor
                   class="cell-editor"
                   :model-value="row.next"
                   :kind="row.definition.kind"
@@ -171,6 +171,7 @@
         :definitions="allDefinitions"
         :layouts="layouts"
         :can-edit-standard="canEditStandard"
+        activity-setting
         :saving="savingLayout"
         @save="saveLayout"
       />
@@ -195,7 +196,7 @@
     PhWarningCircle
   } from "@phosphor-icons/vue";
   import SaleWorklist from "@/components/SaleWorklist.vue";
-  import SaleFieldEditor from "@/components/SaleFieldEditor.vue";
+  import FieldEditor from "@/components/FieldEditor.vue";
   import { SaleAgent } from "@/agents/SaleAgent";
   import { DemoSaleAgent } from "@/agents/DemoSaleAgent";
   import { reasonListFor, SALE_FIELDS, SALE_STATUSES, TRAILING_FIELDS } from "@/config/saleFields";
