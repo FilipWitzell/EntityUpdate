@@ -9,7 +9,8 @@ export interface EntityDemoData {
   currentAssociateId: number;
   records: (EntitySnapshot & { ownerId: number; meta: string })[];
   selections: (ListItem & { recordIds: number[] })[];
-  udefs: EntityFieldDefinition[];
+  /** The user-defined and extra fields, as SuperOffice would report them. */
+  customFields: EntityFieldDefinition[];
 }
 
 /**
@@ -33,8 +34,8 @@ export class DemoEntityAgent implements EntityDataSource {
     return this.data.options;
   }
 
-  async GetUdefDefinitions(): Promise<EntityFieldDefinition[]> {
-    return this.data.udefs;
+  async GetCustomFieldDefinitions(): Promise<EntityFieldDefinition[]> {
+    return this.data.customFields;
   }
 
   async GetCurrentAssociateId(): Promise<number> {

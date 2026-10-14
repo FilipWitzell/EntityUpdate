@@ -23,19 +23,10 @@ export const TICKET: EntityConfig = {
       group: "Nøkkelinfo",
       important: true
     },
-    { key: "categoryId", property: "Category", mdoList: "ejcategory", label: "Kategori", kind: "select", group: "Klassifisering" },
-    // Relation to the extra table Product: ticket.x_product holds the id of a row in y_product.
-    {
-      key: "x_product",
-      customField: "x_product",
-      extraTable: { table: "y_product", displayField: "x_product_name" },
-      label: "Produkt",
-      kind: "select",
-      group: "Klassifisering",
-      important: true
-    }
+    { key: "categoryId", property: "Category", mdoList: "ejcategory", label: "Kategori", kind: "select", group: "Klassifisering" }
   ],
-  // Tickets have extra fields, not user-defined fields; the ones the panel shows are listed above.
+  // Tickets have extra fields (x_...), not user-defined fields. The panel finds them in SuperOffice, e.g.
+  // x_product, a relation to the extra table y_product.
   udef: null,
   worklist: {
     currentLabel: "Saken du står på",

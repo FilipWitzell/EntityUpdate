@@ -1,15 +1,16 @@
 import type { FieldDefinition, FieldLayouts, FieldValue, LayoutLevel, ListItem, SavedLayout } from "@/types/Fields";
 
 /** The entities the generic panel updates. Sales have their own panel, with sale-specific logic. */
-export type EntityName = "contact" | "ticket";
+export type EntityName = "contact" | "person" | "project" | "ticket";
 
 export type EntityValues = Record<string, FieldValue>;
 
 /** The REST entity as it comes from and goes back to SuperOffice - read and written by property name. */
 export type RestEntity = Record<string, unknown> & {
-  CustomFields?: Record<string, string>;
+  /** Extra fields can come as plain numbers or booleans, e.g. a relation's row id. */
+  CustomFields?: Record<string, string | number | boolean | null>;
   UserDefinedFields?: Record<string, string>;
-  ExtraFields?: Record<string, string>;
+  ExtraFields?: Record<string, string | number | boolean | null>;
 };
 
 export interface EntityFieldDefinition extends FieldDefinition {
@@ -29,6 +30,8 @@ export interface EntityFieldDefinition extends FieldDefinition {
    * e.g. { table: "y_product", displayField: "x_product_name" }. The value is the row's id.
    */
   extraTable?: { table: string; displayField: string };
+  /** The values to pick from, when the field brings its own (extra fields found in SuperOffice). */
+  choices?: ListItem[];
 }
 
 /** Everything that makes one entity's panel: where its data lives, its fields and its work lists. */
@@ -96,8 +99,8 @@ export interface EntityDataSource {
   Get(id: number): Promise<EntitySnapshot>;
   /** The values of every list the fields use, by optionListKey() of the field. */
   GetOptions(): Promise<Record<string, ListItem[]>>;
-  /** The user-defined fields on the entity, as field definitions. */
-  GetUdefDefinitions(): Promise<EntityFieldDefinition[]>;
+  /** The user-defined and extra fields on the entity, as field definitions, found in SuperOffice. */
+  GetCustomFieldDefinitions(): Promise<EntityFieldDefinition[]>;
   GetCurrentAssociateId(): Promise<number>;
   /** The users, for picking whose list to work through. */
   GetAssociates(): Promise<ListItem[]>;

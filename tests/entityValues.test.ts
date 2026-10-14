@@ -57,6 +57,22 @@ test("a relation to an extra table is read as the row id, and 0 as no row", () =
   assert.equal(readValues({ CustomFields: { x_product: "[I:0]" } }, [product]).x_product, null);
 });
 
+test("a relation that comes as a plain number is read as the row id", () => {
+  assert.equal(readValues({ CustomFields: { x_product: 2 } }, [product]).x_product, 2);
+  assert.equal(readValues({ CustomFields: { x_product: "2" } }, [product]).x_product, 2);
+  assert.equal(readValues({ CustomFields: { x_product: 0 } }, [product]).x_product, null);
+  assert.equal(readValues({ CustomFields: {} }, [product]).x_product, null);
+});
+
+test("a relation that came as a plain number is written back as one", () => {
+  const entity = { CustomFields: { x_product: 2 }, ExtraFields: { x_product: "2" } };
+  writeValues(entity, { x_product: 3 }, [product]);
+  assert.equal(entity.CustomFields.x_product, 3);
+  assert.equal(entity.ExtraFields.x_product, "3");
+  writeValues(entity, { x_product: null }, [product]);
+  assert.equal(entity.CustomFields.x_product, 0);
+});
+
 test("a relation is written as a whole number in CustomFields and in the old ExtraFields", () => {
   const entity = { CustomFields: { x_product: "[I:0]" }, ExtraFields: { x_product: "[I:0]" } };
   writeValues(entity, { x_product: 2 }, [product]);
@@ -64,4 +80,66 @@ test("a relation is written as a whole number in CustomFields and in the old Ext
   assert.equal(entity.ExtraFields.x_product, "[I:2]");
   writeValues(entity, { x_product: null }, [product]);
   assert.equal(entity.CustomFields.x_product, "[I:0]");
+});
+
+const extra = (key: string, kind: string, more: Record<string, unknown> = {}) => ({
+  key,
+  customField: key,
+  label: key,
+  kind,
+  group: "Ekstrafelt",
+  ...more
+});
+
+test("extra fields of every kind are read, whatever form REST hands them over in", () => {
+  const fields = [
+    extra("x_text", "text"),
+    extra("x_count", "number"),
+    extra("x_rate", "number"),
+    extra("x_done", "checkbox"),
+    extra("x_flag", "checkbox"),
+    extra("x_due", "date"),
+    extra("x_start", "date"),
+    extra("x_choice", "select", { choices: [{ id: "BNXT", name: "BNXT" }] })
+  ];
+  const entity = {
+    CustomFields: {
+      x_text: "Hei",
+      x_count: "[I:7]",
+      x_rate: 1.5,
+      x_done: true,
+      x_flag: "[I:0]",
+      x_due: "[D:2026.10.14]",
+      x_start: "2026-11-01T00:00:00",
+      x_choice: "BNXT"
+    }
+  };
+  assert.deepEqual(readValues(entity, fields), {
+    x_text: "Hei",
+    x_count: 7,
+    x_rate: 1.5,
+    x_done: 1,
+    x_flag: 0,
+    x_due: "2026-10-14",
+    x_start: "2026-11-01",
+    x_choice: "BNXT"
+  });
+});
+
+test("extra fields are written back in the form they came in", () => {
+  const fields = [extra("x_count", "number"), extra("x_done", "checkbox"), extra("x_due", "date"), extra("x_start", "date"), extra("x_text", "text")];
+  const entity = { CustomFields: { x_count: "[I:7]", x_done: true, x_due: "[D:2026.10.14]", x_start: null, x_text: "Hei" } };
+  writeValues(entity, { x_count: 8, x_done: 0, x_due: "2026-12-24", x_start: "2027-01-02", x_text: null }, fields);
+  assert.deepEqual(entity.CustomFields, {
+    x_count: "[I:8]",
+    x_done: false,
+    x_due: "[D:2026.12.24]",
+    x_start: "2027-01-02T00:00:00",
+    x_text: ""
+  });
+});
+
+test("extra fields are not also read as user-defined fields", () => {
+  const values = readValues({ CustomFields: { x_product: 2, "SuperOffice:1": "Hei" } }, [product]);
+  assert.deepEqual(Object.keys(values).sort(), ["udef:SuperOffice:1", "x_product"]);
 });

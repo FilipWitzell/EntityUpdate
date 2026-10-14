@@ -24,11 +24,13 @@ const router = createRouter({
         if (context.entity === "sale") return { name: "saleQuickUpdate", params: { saleId: id } };
         if (context.entity === "contact") return { name: "contactQuickUpdate", params: { id } };
         if (context.entity === "ticket") return { name: "ticketQuickUpdate", params: { id } };
+        if (context.entity === "person") return { name: "personQuickUpdate", params: { id } };
+        if (context.entity === "project") return { name: "projectQuickUpdate", params: { id } };
         return { name: "noCard", query: { entity: context.entity } };
       }
     },
     {
-      // A card the panel has no panel for yet (person, project)
+      // A card the panel has no panel for
       path: "/no-card",
       name: "noCard",
       component: NoCardView,
@@ -73,6 +75,34 @@ const router = createRouter({
       name: "ticketQuickUpdateDemo",
       component: EntityQuickUpdateView,
       props: { entity: "ticket", id: "48213", demo: true }
+    },
+    {
+      // The person panel: .../#/person/<peid>
+      path: "/person/:id",
+      name: "personQuickUpdate",
+      component: EntityQuickUpdateView,
+      props: (route) => ({ entity: "person", id: String(route.params.id) })
+    },
+    {
+      // The person panel with demo data
+      path: "/demo/person",
+      name: "personQuickUpdateDemo",
+      component: EntityQuickUpdateView,
+      props: { entity: "person", id: "3001", demo: true }
+    },
+    {
+      // The project panel: .../#/project/<prid>
+      path: "/project/:id",
+      name: "projectQuickUpdate",
+      component: EntityQuickUpdateView,
+      props: (route) => ({ entity: "project", id: String(route.params.id) })
+    },
+    {
+      // The project panel with demo data
+      path: "/demo/project",
+      name: "projectQuickUpdateDemo",
+      component: EntityQuickUpdateView,
+      props: { entity: "project", id: "4001", demo: true }
     },
     {
       // Same panel with demo data, for showing it without a SuperOffice tenant

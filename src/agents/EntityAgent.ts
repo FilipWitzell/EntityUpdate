@@ -1,6 +1,14 @@
 import { SuperOfficeAgent, restApiDefaultHeaders } from "@/agents/SuperOfficeAgent";
 import { LayoutPreferences } from "@/agents/LayoutPreferences";
-import { fetchMDOList, fetchUdefColumns } from "@/agents/superOfficeLists";
+import {
+  fetchExtraFields,
+  fetchExtraTableDisplayField,
+  fetchExtraTableRows,
+  fetchMDOList,
+  fetchUdefColumns,
+  type ExtraFieldInfo
+} from "@/agents/superOfficeLists";
+import { tidyLabel, tidyListName } from "@/config/superOfficeValues";
 import { EntityChangedError } from "@/agents/EntityChangedError";
 import { optionListKey, readValues, writeValues } from "@/config/entityValues";
 import type { SuperOfficeObject } from "@/types/SuperOfficeObject";
@@ -29,12 +37,13 @@ export class EntityAgent implements EntityDataSource {
   }
 
   async Get(id: number): Promise<EntitySnapshot> {
-    const entity = await this.fetchEntity(id);
+    // Extra fields are read by their definition, so the record waits for them (they are fetched once).
+    const [entity, custom] = await Promise.all([this.fetchEntity(id), this.GetCustomFieldDefinitions()]);
     return {
       id,
       title: this.config.titleOf(entity),
       subtitle: this.config.subtitleOf(entity),
-      values: readValues(entity, this.config.fields),
+      values: readValues(entity, [...this.config.fields, ...custom]),
       ...this.savedBy(entity)
     };
   }
@@ -50,12 +59,41 @@ export class EntityAgent implements EntityDataSource {
       ).entries()
     ];
     const lists = await Promise.all(
-      fields.map(([, field]) => (field.extraTable ? this.fetchExtraTableRows(field.extraTable) : fetchMDOList(this.agent, field.mdoList!)))
+      fields.map(([, field]) =>
+        field.extraTable
+          ? fetchExtraTableRows(this.agent, field.extraTable.table, field.extraTable.displayField)
+          : fetchMDOList(this.agent, field.mdoList!)
+      )
     );
     return Object.fromEntries(fields.map(([key], index) => [key, lists[index]!]));
   }
 
-  async GetUdefDefinitions(): Promise<EntityFieldDefinition[]> {
+  private customDefinitions: Promise<EntityFieldDefinition[]> | null = null;
+
+  /**
+   * The user-defined fields, then the extra fields - fetched once, they do not change while the panel is
+   * open. If one kind can't be read, the other is still shown.
+   */
+  GetCustomFieldDefinitions(): Promise<EntityFieldDefinition[]> {
+    this.customDefinitions ??= this.fetchCustomFieldDefinitions();
+    return this.customDefinitions;
+  }
+
+  private async fetchCustomFieldDefinitions(): Promise<EntityFieldDefinition[]> {
+    const [udefs, extras] = await Promise.all([
+      this.fetchUdefDefinitions().catch((e) => {
+        console.error("Could not fetch user-defined fields:", e);
+        return [];
+      }),
+      this.fetchExtraFieldDefinitions().catch((e) => {
+        console.error("Could not fetch extra fields:", e);
+        return [];
+      })
+    ]);
+    return [...udefs, ...extras];
+  }
+
+  private async fetchUdefDefinitions(): Promise<EntityFieldDefinition[]> {
     if (!this.config.udef) return [];
     const columns = await fetchUdefColumns(this.agent, this.config.udef.provider, this.config.udef.columnPrefix);
     return columns.map((column) => ({
@@ -66,6 +104,54 @@ export class EntityAgent implements EntityDataSource {
       hiddenByDefault: true,
       udef: { progId: column.progId, numberType: column.numberType }
     }));
+  }
+
+  /**
+   * Every extra field (x_...) on the entity that the panel can edit, with the values to pick from.
+   * Fields built into the config are left out here, so they are not shown twice.
+   */
+  private async fetchExtraFieldDefinitions(): Promise<EntityFieldDefinition[]> {
+    const builtIn = new Set(this.config.fields.map((field) => field.customField));
+    const fields = (await fetchExtraFields(this.agent, this.config.restEntity)).filter((field) => !builtIn.has(field.FieldName));
+    const definitions = await Promise.all(fields.map((field) => this.toExtraFieldDefinition(field)));
+    return definitions.filter((definition) => definition !== null);
+  }
+
+  private async toExtraFieldDefinition(field: ExtraFieldInfo): Promise<EntityFieldDefinition | null> {
+    const base = { key: field.FieldName, customField: field.FieldName, label: tidyLabel(tidyListName(field.DisplayName)), group: "Ekstrafelt" };
+    switch (field.FieldType) {
+      case "ShortText":
+      case "LongText":
+        return { ...base, kind: field.FieldType === "LongText" ? "longtext" : "text" };
+      case "Integer":
+      case "Decimal":
+        return { ...base, kind: "number" };
+      case "Date":
+        return { ...base, kind: "date" };
+      case "Checkbox":
+        return { ...base, kind: "checkbox" };
+      case "ListText":
+        return { ...base, kind: "select", choices: (field.Choices ?? []).map((choice) => ({ id: choice, name: choice })) };
+      case "MdoList":
+        if (!field.MdoListName) return null;
+        return { ...base, kind: "select", mdoList: field.MdoListName, choices: await fetchMDOList(this.agent, field.MdoListName) };
+      case "RelationTo": {
+        // Relations to SuperOffice's own tables (contact, person...) need a search, not a list; not yet.
+        const table = field.TargetTable;
+        if (!table?.startsWith("y_")) return null;
+        try {
+          const displayField = await fetchExtraTableDisplayField(this.agent, table);
+          const choices = await fetchExtraTableRows(this.agent, table, displayField);
+          return { ...base, kind: "select", extraTable: { table, displayField }, choices };
+        } catch (e) {
+          console.error(`Could not read the rows of ${table} for ${field.FieldName}:`, e);
+          return null;
+        }
+      }
+      // Date and time, time spans, attachments and dynamic links are left out for now.
+      default:
+        return null;
+    }
   }
 
   async GetCurrentAssociateId(): Promise<number> {
@@ -153,23 +239,6 @@ export class EntityAgent implements EntityDataSource {
     const at = entity[this.config.updatedAtProperty ?? "UpdatedDate"];
     const by = entity[this.config.updatedByProperty ?? "UpdatedBy"] as { FullName?: string } | null | undefined;
     return { updatedAt: typeof at === "string" ? at : "", updatedBy: by?.FullName ?? "" };
-  }
-
-  /**
-   * The rows of an extra table, through the dynamic archive: id and the field shown, sorted by it.
-   * The archive names its columns "<table>.<field>"; a plain "<field>" is read too.
-   */
-  private async fetchExtraTableRows(extraTable: { table: string; displayField: string }): Promise<ListItem[]> {
-    const { table, displayField } = extraTable;
-    const rows = await this.agent.QueryEntities({
-      entity: "Archive/dynamic",
-      select: `${table}.id,${table}.${displayField}`,
-      orderBy: `${table}.${displayField} asc`,
-      top: 1000
-    });
-    return rows
-      .map((row) => ({ id: Number(row[`${table}.id`] ?? row.id), name: String(row[`${table}.${displayField}`] ?? row[displayField] ?? "") }))
-      .filter((row) => row.id > 0);
   }
 
   private worklistColumns(): string {

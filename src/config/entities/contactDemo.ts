@@ -49,7 +49,7 @@ export const CONTACT_DEMO: EntityDemoData = {
     { id: 2, name: "Prospekter Buskerud", recordIds: [2001, 2005] },
     { id: 3, name: "Partnere", recordIds: [2004] }
   ],
-  udefs: [
+  customFields: [
     { key: "udef:demo:erp", label: "ERP-system", kind: "text", group: "Egendefinerte felt", hiddenByDefault: true, udef: { progId: "demo:erp" } }
   ]
 };

@@ -28,13 +28,6 @@ export const TICKET_DEMO: EntityDemoData = {
       { id: 1, name: "Support" },
       { id: 2, name: "Integrasjon" },
       { id: 3, name: "Faktura" }
-    ],
-    "extra:y_product": [
-      { id: 1, name: "SuperOffice" },
-      { id: 2, name: "Visma Net" },
-      { id: 3, name: "Tripletex" },
-      { id: 4, name: "Business NXT" },
-      { id: 5, name: "Microsoft 365" }
     ]
   },
   records: [
@@ -48,5 +41,22 @@ export const TICKET_DEMO: EntityDemoData = {
     { id: 41, name: "Saker uten produkt", recordIds: [48213, 48231, 48244] },
     { id: 42, name: "Åpne integrasjonssaker", recordIds: [48213, 48231] }
   ],
-  udefs: []
+  // The extra fields SuperOffice would report for tickets.
+  customFields: [
+    {
+      key: "x_product",
+      customField: "x_product",
+      extraTable: { table: "y_product", displayField: "x_product_name" },
+      label: "Product",
+      kind: "select",
+      group: "Ekstrafelt",
+      choices: [
+        { id: 1, name: "SuperOffice" },
+        { id: 2, name: "Visma Net" },
+        { id: 3, name: "Tripletex" },
+        { id: 4, name: "Business NXT" },
+        { id: 5, name: "Microsoft 365" }
+      ]
+    }
+  ]
 };

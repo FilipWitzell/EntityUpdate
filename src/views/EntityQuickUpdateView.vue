@@ -327,8 +327,8 @@
   /** Field settings: the user-defined fields, both layouts and whether this user may change the standard. */
   async function loadFieldSettings() {
     const [udefs, savedLayouts, mayEditStandard] = await Promise.all([
-      dataSource.GetUdefDefinitions().catch((e) => {
-        console.error("Could not fetch user-defined fields:", e);
+      dataSource.GetCustomFieldDefinitions().catch((e) => {
+        console.error("Could not fetch user-defined and extra fields:", e);
         return [] as EntityFieldDefinition[];
       }),
       dataSource.GetFieldLayouts().catch((e) => {
@@ -382,6 +382,7 @@
   }
 
   function optionsFor(row: FieldRow): ListItem[] {
+    if (row.definition.choices) return row.definition.choices;
     const key = optionListKey(row.definition);
     return key ? (options.value?.[key] ?? []) : [];
   }

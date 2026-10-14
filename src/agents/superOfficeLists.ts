@@ -39,6 +39,70 @@ export interface UdefColumn {
 }
 
 /**
+ * An extra field (x_...) as /api/v1/<Entity>/CustomField describes it. The base is FieldInfoBase; the
+ * rest comes with the field's own type (FieldInfoRelation, FieldInfoListText, FieldInfoMdoList, ...).
+ */
+export interface ExtraFieldInfo {
+  FieldName: string;
+  FieldType: string;
+  DisplayName: string;
+  HideField?: boolean;
+  IsReadOnly?: boolean;
+  Rank?: number;
+  /** Relations: the table the field points to, e.g. "y_product" or "contact". */
+  TargetTable?: string;
+  /** "Select from list" text fields: the values to pick from. */
+  Choices?: string[];
+  /** List fields: the MDO list the values come from. */
+  MdoListName?: string;
+}
+
+/**
+ * The extra fields on an entity, in SuperOffice's order. The same call also lists published user-defined
+ * fields; those are read from the archive (fetchUdefColumns), so only x_ fields are kept here.
+ */
+export async function fetchExtraFields(agent: SuperOfficeAgent, restEntity: string): Promise<ExtraFieldInfo[]> {
+  const response = await agent.Request({
+    method: "GET",
+    endpoint: `/api/v1/${restEntity}/CustomField`,
+    headers: restApiDefaultHeaders()
+  });
+  const fields = (await response.json()) as ExtraFieldInfo[];
+  return fields
+    .filter((field) => field.FieldName.startsWith("x_") && !field.HideField)
+    .sort((a, b) => (a.Rank ?? 0) - (b.Rank ?? 0));
+}
+
+/** The field an extra table shows its rows by (its "Visningsfelt"), e.g. "x_product_name" for y_product. */
+export async function fetchExtraTableDisplayField(agent: SuperOfficeAgent, table: string): Promise<string> {
+  const response = await agent.Request({
+    method: "POST",
+    endpoint: "/api/v1/Agents/CustomObject/GetCustomObjectDefinition",
+    body: { DefinitionName: table },
+    headers: restApiDefaultHeaders()
+  });
+  const definition = (await response.json()) as { DisplayField?: string };
+  if (!definition.DisplayField) throw new Error(`${table} har ikke noe visningsfelt.`);
+  return definition.DisplayField;
+}
+
+/**
+ * The rows of an extra table, through the dynamic archive: id and the field shown, sorted by id as
+ * SuperOffice does. The archive names its columns "<table>.<field>"; a plain "<field>" is read too.
+ */
+export async function fetchExtraTableRows(agent: SuperOfficeAgent, table: string, displayField: string): Promise<ListItem[]> {
+  const rows = await agent.QueryEntities({
+    entity: "Archive/dynamic",
+    select: `${table}.id,${table}.${displayField}`,
+    orderBy: `${table}.id asc`,
+    top: 1000
+  });
+  return rows
+    .map((row) => ({ id: Number(row[`${table}.id`] ?? row.id), name: String(row[`${table}.${displayField}`] ?? row[displayField] ?? "") }))
+    .filter((row) => row.id > 0);
+}
+
+/**
  * User-defined fields, read from an archive provider's columns (e.g. contactUdef/<progId> in FindContact),
  * which carry each field's label and type. List fields are left out for now.
  */
