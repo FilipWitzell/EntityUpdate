@@ -84,7 +84,8 @@ https://app.superoffice.com/Cust30460/CS/scripts/blogic.fcgi?action=doScript&inc
 
 ## Status
 
-- Deployet til Cust30460 (skrivebeskyttet bygg), og web panel er lagt inn.
+- Deployet til Cust30460 med lagring på, og web panel er lagt inn for Firma, Person, Prosjekt, Salg og Sak.
+- Prosjekt er bekreftet: Navn, Prosjektnummer, Ansvarlig, Type og Status vises og lagres.
 - Typesjekk, 25 tester og bygg er grønne.
 
 ## Ikke verifisert mot tenant – sjekkes først
@@ -93,10 +94,9 @@ https://app.superoffice.com/Cust30460/CS/scripts/blogic.fcgi?action=doScript&inc
    hvordan `Category` ser ut på `/api/v1/Ticket/39` mot `idField` og MDO-listen `ejcategory`.
 2. At lagring av `x_product` som rent tall godtas. (Lesing er bekreftet: Product viser CW på sak 39,
    og Utstyr ble funnet automatisk.)
-3. Person og Prosjekt: feltnavn på REST-entitetene (`Position`, `Retired`, `ProjectType`,
-   `ProjectStatus`, `Description`), MDO-listene `position`, `projecttype` og `projectstatus`,
-   udef-arkivene `Person` / `Project`, arbeidslistekolonnene (`fullName`, `title`, `projectNumber`)
-   og persontabell 6 for utvalg.
+3. Person: feltnavn på REST-entiteten (`Position`, `Retired`), MDO-listen `position`, udef-arkivet
+   `Person`, arbeidslistekolonnene (`fullName`, `title`) og persontabell 6 for utvalg. Prosjekt: udef-
+   arkivet `Project`, `Description` og arbeidslistekolonnen `projectNumber`.
 4. Filteret «Mine saker» `ownedBy eq <id>` mot `Ticket`, og firmalistens `orgnr` / `associateId`.
 5. Feltnavn for «sist endret» på TicketEntity (`updatedAtProperty` i ticket-configen). Uten det
    er konfliktsjekken på sak av.
