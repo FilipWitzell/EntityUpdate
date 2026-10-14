@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 import MainView from "../views/MainView.vue";
 import SaleQuickUpdateView from "../views/SaleQuickUpdateView.vue";
+import EntityQuickUpdateView from "../views/EntityQuickUpdateView.vue";
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
@@ -11,8 +12,11 @@ const router = createRouter({
       name: "root",
       component: MainView,
       beforeEnter: () => {
-        const saleId = new URLSearchParams(window.location.search).get("saleId");
+        const params = new URLSearchParams(window.location.search);
+        const saleId = params.get("saleId");
         if (saleId) return { name: "saleQuickUpdate", params: { saleId } };
+        const contactId = params.get("contactId");
+        if (contactId) return { name: "contactQuickUpdate", params: { id: contactId } };
       }
     },
     {
@@ -26,6 +30,20 @@ const router = createRouter({
       name: "saleQuickUpdate",
       component: SaleQuickUpdateView,
       props: true
+    },
+    {
+      // Web panel on the company card: ...&contactId=<cuid>, or .../#/contact/<cuid>
+      path: "/contact/:id",
+      name: "contactQuickUpdate",
+      component: EntityQuickUpdateView,
+      props: (route) => ({ entity: "contact", id: String(route.params.id) })
+    },
+    {
+      // The company panel with demo data
+      path: "/demo/contact",
+      name: "contactQuickUpdateDemo",
+      component: EntityQuickUpdateView,
+      props: { entity: "contact", id: "2001", demo: true }
     },
     {
       // Same panel with demo data, for showing it without a SuperOffice tenant

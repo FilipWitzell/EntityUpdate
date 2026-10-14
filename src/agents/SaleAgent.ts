@@ -1,11 +1,12 @@
 import { SuperOfficeAgent, restApiDefaultHeaders } from "@/agents/SuperOfficeAgent";
 import { reasonListFor, SALE_STATUSES } from "@/config/saleFields";
 import type { SuperOfficeObject } from "@/types/SuperOfficeObject";
-import { decodeLayout, encodeLayout } from "@/config/fieldLayout";
-import { decodeUdefValue, encodeUdefValue, tidyLabel, tidyListName } from "@/config/superOfficeValues";
+import { decodeUdefValue, encodeUdefValue, tidyListName } from "@/config/superOfficeValues";
+import { LayoutPreferences } from "@/agents/LayoutPreferences";
+import { dateOrNull } from "@/config/entityValues";
+import { fetchMDOList, fetchUdefColumns, type MDOListItem } from "@/agents/superOfficeLists";
 import { SaleChangedError } from "@/agents/SaleChangedError";
 import type {
-  FieldKind,
   FieldValue,
   FieldLayouts,
   LayoutLevel,
@@ -56,12 +57,6 @@ interface SaleEntity {
   [key: string]: unknown;
 }
 
-interface MDOListItem {
-  Id: number;
-  Name: string;
-  Deleted?: boolean;
-}
-
 interface MDOListItemWithExtraInfo extends MDOListItem {
   ExtraInfo?: string;
 }
@@ -80,6 +75,7 @@ const MDO_LISTS: Record<Exclude<ListName, "stage" | "status">, string> = {
 /** Reads and updates a sale through the SuperOffice REST API, as the logged in user. */
 export class SaleAgent implements SaleDataSource {
   private agent = new SuperOfficeAgent();
+  private layouts = new LayoutPreferences(this.agent, LAYOUT_PREFERENCE, () => this.GetCurrentAssociateId());
 
   async GetSale(saleId: number): Promise<SaleSnapshot> {
     const sale = await this.fetchSaleEntity(saleId);
@@ -131,45 +127,30 @@ export class SaleAgent implements SaleDataSource {
   async GetOptions(): Promise<SaleOptions> {
     const [stage, associate, saleType, source, competitor, reasonSold, reasonLost, reasonStalled] = await Promise.all([
       this.fetchSaleStages(),
-      this.fetchMDOList(MDO_LISTS.associate),
-      this.fetchMDOList(MDO_LISTS.saleType),
-      this.fetchMDOList(MDO_LISTS.source),
-      this.fetchMDOList(MDO_LISTS.competitor),
-      this.fetchMDOList(MDO_LISTS.reasonSold),
-      this.fetchMDOList(MDO_LISTS.reasonLost),
-      this.fetchMDOList(MDO_LISTS.reasonStalled)
+      fetchMDOList(this.agent, MDO_LISTS.associate),
+      fetchMDOList(this.agent, MDO_LISTS.saleType),
+      fetchMDOList(this.agent, MDO_LISTS.source),
+      fetchMDOList(this.agent, MDO_LISTS.competitor),
+      fetchMDOList(this.agent, MDO_LISTS.reasonSold),
+      fetchMDOList(this.agent, MDO_LISTS.reasonLost),
+      fetchMDOList(this.agent, MDO_LISTS.reasonStalled)
     ]);
 
     const stagesBySaleType = await this.fetchStagesBySaleType(saleType);
     return { stage, associate, saleType, source, competitor, status: SALE_STATUSES, reasonSold, reasonLost, reasonStalled, stagesBySaleType };
   }
 
-  /**
-   * User-defined fields on sales, read from the Sale archive's columns (saleUdef/<progId>), which
-   * carry each field's label and type. List fields are left out for now.
-   */
+  /** User-defined fields on sales, from the Sale archive's columns (saleUdef/<progId>). List fields are left out for now. */
   async GetUdefDefinitions(): Promise<SaleFieldDefinition[]> {
-    const response = await this.agent.Request({
-      method: "POST",
-      endpoint: "/api/v1/Agents/Archive/GetAvailableColumns",
-      body: { ProviderName: "Sale" },
-      headers: restApiDefaultHeaders()
-    });
-    const columns = (await response.json()) as { Name: string; DisplayName: string; DisplayType: string }[];
-    return columns
-      .filter((column) => column.Name.startsWith("saleUdef/") && UDEF_KINDS[column.DisplayType])
-      .map((column) => {
-        const progId = column.Name.substring("saleUdef/".length);
-        const { kind, numberType } = UDEF_KINDS[column.DisplayType]!;
-        return {
-          key: `udef:${progId}` as const,
-          label: tidyLabel(column.DisplayName),
-          kind,
-          group: "Egendefinerte felt",
-          hiddenByDefault: true,
-          udef: { progId, numberType }
-        };
-      });
+    const columns = await fetchUdefColumns(this.agent, "Sale", "saleUdef/");
+    return columns.map((column) => ({
+      key: `udef:${column.progId}` as const,
+      label: column.label,
+      kind: column.kind,
+      group: "Egendefinerte felt",
+      hiddenByDefault: true,
+      udef: { progId: column.progId, numberType: column.numberType }
+    }));
   }
 
   async GetCurrentAssociateId(): Promise<number> {
@@ -182,66 +163,12 @@ export class SaleAgent implements SaleDataSource {
     return rights.includes("admin-all");
   }
 
-  /**
-   * The standard layout is a database-level preference, the user's own an individual one - each on its
-   * own key. Reading a preference at a given level needs preference administrator rights, so ordinary
-   * users read the value that applies to them. With separate keys that value is the one asked for:
-   * nobody saves an individual value on the standard's key, and nobody a database value on the user's key.
-   */
   async GetFieldLayouts(): Promise<FieldLayouts> {
-    // Read one by one: a layout that can not be read must not take the other one with it.
-    const [standard, personal] = await Promise.all([
-      this.fetchLayoutPreference(LAYOUT_PREFERENCE.standardKey, "Database").catch((e) => {
-        console.error("Could not read the standard layout:", e);
-        return null;
-      }),
-      this.fetchLayoutPreference(LAYOUT_PREFERENCE.personalKey, "Individual").catch((e) => {
-        console.error("Could not read the personal layout:", e);
-        return null;
-      })
-    ]);
-    return { standard: decodeLayout(standard), personal: decodeLayout(personal) };
+    return this.layouts.get();
   }
 
-  /**
-   * An empty value stands for "no layout": the personal one then falls back to the standard.
-   * SavePreferenceEntity needs preference administrator rights, so it is only used for the standard.
-   * The user's own layout goes through SavePreferences, which any user may call for themselves.
-   */
   async SaveFieldLayout(level: LayoutLevel, layout: SavedLayout | null): Promise<void> {
-    const rawValue = layout ? encodeLayout(layout) : "";
-    if (level === "standard") {
-      await this.agent.Request({
-        method: "POST",
-        endpoint: "/api/v1/Agents/Preference/SavePreferenceEntity",
-        body: {
-          Preference: {
-            Level: "Database",
-            RawValue: rawValue,
-            Specification: { Section: LAYOUT_PREFERENCE.section, Key: LAYOUT_PREFERENCE.standardKey },
-            TargetId: 0
-          },
-          RemoveLowerLevels: false
-        },
-        headers: restApiDefaultHeaders()
-      });
-      return;
-    }
-    await this.agent.Request({
-      method: "POST",
-      endpoint: "/api/v1/Agents/Preference/SavePreferences",
-      body: {
-        Preferences: [
-          {
-            Level: "Individual",
-            RawValue: rawValue,
-            Specification: { Section: LAYOUT_PREFERENCE.section, Key: LAYOUT_PREFERENCE.personalKey },
-            TargetId: await this.GetCurrentAssociateId()
-          }
-        ]
-      },
-      headers: restApiDefaultHeaders()
-    });
+    return this.layouts.save(level, layout);
   }
 
   /** Open sales owned by an associate, earliest sale date first. saleStatus 1 is Open. */
@@ -426,28 +353,6 @@ export class SaleAgent implements SaleDataSource {
   }
 
   /**
-   * The value saved on the expected level ("Undefined" = nothing saved). Administrators may ask for the
-   * level itself; for everyone else that is refused, and the value that applies to them is read instead.
-   */
-  private async fetchLayoutPreference(key: string, level: "Database" | "Individual"): Promise<string | null> {
-    const read = async (prefLevel?: string) => {
-      const response = await this.agent.Request({
-        method: "POST",
-        endpoint: "/api/v1/Agents/Preference/GetPreferenceByName",
-        body: { PrefSection: LAYOUT_PREFERENCE.section, PrefKey: key, PrefLevel: prefLevel ?? "Undefined" },
-        headers: restApiDefaultHeaders()
-      });
-      const preference = (await response.json()) as { Level: string; RawValue: string | null };
-      return preference.Level === level ? preference.RawValue : null;
-    };
-    try {
-      return await read(level);
-    } catch {
-      return read();
-    }
-  }
-
-  /**
    * Sale stages, with each stage's default probability read from ExtraInfo ("...&Probability=20&...").
    * Ids below 1 are the built-in sold/lost stages, which are set through status instead.
    */
@@ -488,43 +393,14 @@ export class SaleAgent implements SaleDataSource {
     );
     return Object.fromEntries(entries.filter(([, stages]) => stages.length > 0));
   }
-
-  private async fetchMDOList(listName: string): Promise<ListItem[]> {
-    const response = await this.agent.Request({
-      method: "GET",
-      endpoint: `/api/v1/MDOList/${listName}`,
-      urlParams: new URLSearchParams({ flat: "true" }),
-      headers: restApiDefaultHeaders()
-    });
-    const items = (await response.json()) as MDOListItem[];
-    return items.filter((item) => item.Id > 0 && !item.Deleted).map((item) => ({ id: item.Id, name: tidyListName(item.Name) }));
-  }
 }
 
 function idOrNull(id: number | undefined): number | null {
   return id && id > 0 ? id : null;
 }
 
-/** "2027-03-01T00:00:00" -> "2027-03-01"; SuperOffice's empty date (year 0001) and none -> null. */
-function dateOrNull(value: string | null | undefined): string | null {
-  if (!value || value.startsWith("0001")) return null;
-  return value.substring(0, 10);
-}
-
-/** Where the field layouts are kept among the SuperOffice preferences. */
+/** Where the field layouts are kept among the SuperOffice preferences - the same keys as the SaleUpdate app, so saved layouts carry over. */
 const LAYOUT_PREFERENCE = { section: "SaleUpdate", standardKey: "FieldLayout", personalKey: "MyFieldLayout" };
-
-/** Archive column types of user-defined fields the panel can edit. */
-const UDEF_KINDS: Record<string, { kind: FieldKind; numberType?: "int" | "decimal" } | undefined> = {
-  string: { kind: "text" },
-  int: { kind: "number", numberType: "int" },
-  decimal: { kind: "number", numberType: "decimal" },
-  date: { kind: "date" },
-  checkbox: { kind: "checkbox" }
-};
-
-
-
 
 /** Archive fields read for sale lists (my open sales, selections). */
 const SALE_LIST_FIELDS = "saleId,heading,amount,date,contact/name";

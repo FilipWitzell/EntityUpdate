@@ -1,0 +1,110 @@
+import { decodeLayout, encodeLayout } from "@/config/fieldLayout";
+import type { FieldLayouts, LayoutLevel, ListItem, SavedLayout } from "@/types/Fields";
+import type { EntityDataSource, EntityFieldDefinition, EntitySnapshot, EntityValues, WorklistItem } from "@/types/EntityQuickUpdate";
+
+/** Demo data for one entity: the records, the lists their values come from, and the selections. */
+export interface EntityDemoData {
+  /** The values of each MDO list the fields use, by list name. Must hold "associate". */
+  options: Record<string, ListItem[]>;
+  currentAssociateId: number;
+  records: (EntitySnapshot & { ownerId: number; meta: string })[];
+  selections: (ListItem & { recordIds: number[] })[];
+  udefs: EntityFieldDefinition[];
+}
+
+/**
+ * Demo data for showing a panel without a SuperOffice tenant (routes #/demo/<entity>).
+ * Changes are kept in memory until the page is reloaded; layouts in this browser.
+ */
+export class DemoEntityAgent implements EntityDataSource {
+  constructor(
+    private entityName: string,
+    private data: EntityDemoData
+  ) {}
+
+  async Get(id: number): Promise<EntitySnapshot> {
+    await pause();
+    const record = this.data.records.find((item) => item.id === id);
+    if (!record) throw new Error(`Fant ikke ${id} i demodataene.`);
+    return structuredClone({ ...record, values: { ...record.values } });
+  }
+
+  async GetOptions(): Promise<Record<string, ListItem[]>> {
+    return this.data.options;
+  }
+
+  async GetUdefDefinitions(): Promise<EntityFieldDefinition[]> {
+    return this.data.udefs;
+  }
+
+  async GetCurrentAssociateId(): Promise<number> {
+    return this.data.currentAssociateId;
+  }
+
+  async GetAssociates(): Promise<ListItem[]> {
+    return this.data.options.associate ?? [];
+  }
+
+  /** In the demo, anyone may try the standard layout. */
+  async CanEditStandardLayout(): Promise<boolean> {
+    return true;
+  }
+
+  async GetFieldLayouts(): Promise<FieldLayouts> {
+    return { standard: decodeLayout(this.readLayout("standard")), personal: decodeLayout(this.readLayout("personal")) };
+  }
+
+  async SaveFieldLayout(level: LayoutLevel, layout: SavedLayout | null): Promise<void> {
+    try {
+      const key = this.layoutKey(level);
+      if (layout) localStorage.setItem(key, encodeLayout(layout));
+      else localStorage.removeItem(key);
+    } catch {
+      // Storage can be blocked - the demo layout then lasts until the page is reloaded.
+    }
+  }
+
+  async GetOwnedBy(associateId: number): Promise<WorklistItem[]> {
+    await pause();
+    return this.data.records.filter((record) => record.ownerId === associateId).map(toWorklistItem);
+  }
+
+  async GetSelections(): Promise<ListItem[]> {
+    return this.data.selections.map(({ id, name }) => ({ id, name }));
+  }
+
+  async GetSelectionItems(selectionId: number): Promise<WorklistItem[]> {
+    await pause();
+    const ids = this.data.selections.find((selection) => selection.id === selectionId)?.recordIds ?? [];
+    return ids.flatMap((id) => this.data.records.filter((record) => record.id === id)).map(toWorklistItem);
+  }
+
+  async Update(id: number, changes: EntityValues): Promise<void> {
+    await pause();
+    const record = this.data.records.find((item) => item.id === id);
+    if (!record) throw new Error(`Fant ikke ${id} i demodataene.`);
+    Object.assign(record.values, changes);
+    record.updatedAt = new Date().toISOString();
+  }
+
+  private layoutKey(level: LayoutLevel): string {
+    return `entityUpdate.demoLayout.${this.entityName}.${level}`;
+  }
+
+  private readLayout(level: LayoutLevel): string | null {
+    try {
+      return localStorage.getItem(this.layoutKey(level));
+    } catch {
+      return null;
+    }
+  }
+}
+
+function toWorklistItem(record: { id: number; title: string; meta: string }): WorklistItem {
+  return { id: record.id, title: record.title, meta: record.meta };
+}
+
+/** A short wait, so loading states can be seen in the demo. */
+function pause(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 150));
+}
