@@ -2,24 +2,37 @@ import { createRouter, createWebHashHistory } from "vue-router";
 import MainView from "../views/MainView.vue";
 import SaleQuickUpdateView from "../views/SaleQuickUpdateView.vue";
 import EntityQuickUpdateView from "../views/EntityQuickUpdateView.vue";
+import NoCardView from "../views/NoCardView.vue";
+import { readSuperOfficeAddress, resolveCardContext } from "@/services/superOfficeContext";
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      // Web panel URL with ...&saleId=<said> opens the panel for the sale the user is on
+      /*
+       * One web panel URL for every card:
+       *   ...&app=entity-update&contactId=<cuid>&personId=<peid>&projectId=<prid>&saleId=<said>&ticketId=<tiid>
+       * The card the panel is on is read from the SuperOffice window's address; the ids are the fallback.
+       */
       path: "/",
       name: "root",
-      component: MainView,
+      component: NoCardView,
       beforeEnter: () => {
-        const params = new URLSearchParams(window.location.search);
-        const saleId = params.get("saleId");
-        if (saleId) return { name: "saleQuickUpdate", params: { saleId } };
-        const contactId = params.get("contactId");
-        if (contactId) return { name: "contactQuickUpdate", params: { id: contactId } };
-        const ticketId = params.get("ticketId");
-        if (ticketId) return { name: "ticketQuickUpdate", params: { id: ticketId } };
+        const context = resolveCardContext(new URLSearchParams(window.location.search), readSuperOfficeAddress());
+        if (!context) return;
+        const id = String(context.id);
+        if (context.entity === "sale") return { name: "saleQuickUpdate", params: { saleId: id } };
+        if (context.entity === "contact") return { name: "contactQuickUpdate", params: { id } };
+        if (context.entity === "ticket") return { name: "ticketQuickUpdate", params: { id } };
+        return { name: "noCard", query: { entity: context.entity } };
       }
+    },
+    {
+      // A card the panel has no panel for yet (person, project)
+      path: "/no-card",
+      name: "noCard",
+      component: NoCardView,
+      props: (route) => ({ entity: String(route.query.entity ?? "") })
     },
     {
       path: "/main",
@@ -27,14 +40,14 @@ const router = createRouter({
       component: MainView
     },
     {
-      // Web panel on the sale card: .../#/sale/<said>
+      // The sale panel: .../#/sale/<said>
       path: "/sale/:saleId",
       name: "saleQuickUpdate",
       component: SaleQuickUpdateView,
       props: true
     },
     {
-      // Web panel on the company card: ...&contactId=<cuid>, or .../#/contact/<cuid>
+      // The company panel: .../#/contact/<cuid>
       path: "/contact/:id",
       name: "contactQuickUpdate",
       component: EntityQuickUpdateView,
@@ -48,7 +61,7 @@ const router = createRouter({
       props: { entity: "contact", id: "2001", demo: true }
     },
     {
-      // Web panel on the ticket: ...&ticketId=<tiid>, or .../#/ticket/<tiid>
+      // The ticket panel: .../#/ticket/<tiid>
       path: "/ticket/:id",
       name: "ticketQuickUpdate",
       component: EntityQuickUpdateView,
