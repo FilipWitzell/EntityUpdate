@@ -14,16 +14,18 @@ export interface CardState {
   writing: boolean;
   /** The SuperOffice window could not be read, so nothing is known. */
   unknown: boolean;
+  /** The elements that made the card look busy, for the console. */
+  found: string[];
 }
 
 export function readCardState(): CardState {
   const documents = superOfficeDocuments();
-  if (documents.length === 0) return { editing: false, writing: false, unknown: true };
-  return {
-    editing: documents.some(hasSaveAndCancel),
-    writing: documents.some(hasTextBeingWritten),
-    unknown: false
-  };
+  if (documents.length === 0) return { editing: false, writing: false, unknown: true, found: [] };
+  const editing = documents.flatMap(saveAndCancelButtons);
+  const writing = documents.flatMap(textBeingWritten);
+  const state = { editing: editing.length > 0, writing: writing.length > 0, unknown: false, found: [...editing, ...writing].map(describe) };
+  if (state.found.length > 0) console.info("The SuperOffice card looks busy because of:", state.found);
+  return state;
 }
 
 /** Whether reloading the card now could throw away something the user has not saved. */
@@ -59,24 +61,62 @@ function superOfficeDocuments(): Document[] {
   return found;
 }
 
+/**
+ * Really on screen: laid out, with a size, not hidden by visibility or opacity (on it or any parent),
+ * and inside its window. SuperOffice keeps buttons for edit mode in the page while they are hidden.
+ */
 function isShown(element: Element): boolean {
-  return element.getClientRects().length > 0;
+  const box = element.getBoundingClientRect();
+  if (box.width < 2 || box.height < 2) return false;
+  const view = element.ownerDocument.defaultView;
+  // Placed off screen. A window with no size (a frame not laid out yet) tells nothing, so it is skipped.
+  const offScreen = (end: number, start: number, size: number) => end <= 0 || (size > 0 && start >= size);
+  if (view && (offScreen(box.bottom, box.top, view.innerHeight) || offScreen(box.right, box.left, view.innerWidth))) return false;
+  if (typeof element.checkVisibility === "function") {
+    if (!element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
+  } else {
+    for (let node: Element | null = element; node; node = node.parentElement) {
+      const style = view?.getComputedStyle(node);
+      if (style && (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0)) return false;
+    }
+  }
+  // Cut away by a parent that clips its content, e.g. a collapsed panel with height 0.
+  for (let node = element.parentElement; node && node !== element.ownerDocument.body; node = node.parentElement) {
+    const style = view?.getComputedStyle(node);
+    if (!style || style.overflow === "visible") continue;
+    const clip = node.getBoundingClientRect();
+    if (box.bottom <= clip.top || box.top >= clip.bottom || box.right <= clip.left || box.left >= clip.right) return false;
+  }
+  return true;
 }
 
-/** A form in edit mode shows both a Lagre and an Avbryt button. */
-function hasSaveAndCancel(doc: Document): boolean {
-  const labels = new Set(
-    [...doc.querySelectorAll("button, [role=button], input[type=button], input[type=submit]")]
-      .filter(isShown)
-      .map((button) => (button.textContent || (button as HTMLInputElement).value || "").trim().toLowerCase())
+function label(button: Element): string {
+  return (button.textContent || (button as HTMLInputElement).value || "").trim().toLowerCase();
+}
+
+/** A form in edit mode shows both a Lagre and an Avbryt button; both are returned, or none. */
+function saveAndCancelButtons(doc: Document): Element[] {
+  const shown = [...doc.querySelectorAll("button, [role=button], input[type=button], input[type=submit]")].filter(
+    (button) => ["lagre", "avbryt", "save", "cancel"].includes(label(button)) && isShown(button)
   );
-  return (labels.has("lagre") && labels.has("avbryt")) || (labels.has("save") && labels.has("cancel"));
+  const save = shown.filter((button) => label(button) === "lagre" || label(button) === "save");
+  const cancel = shown.filter((button) => label(button) === "avbryt" || label(button) === "cancel");
+  return save.length > 0 && cancel.length > 0 ? [...save, ...cancel] : [];
 }
 
-/** An editor or text area with text in it - a message being written. */
-function hasTextBeingWritten(doc: Document): boolean {
+/** Editors and text areas with text in them - a message being written. */
+function textBeingWritten(doc: Document): Element[] {
   const editors = [...doc.querySelectorAll<HTMLElement>("[contenteditable=''], [contenteditable=true]")];
   if (doc.body?.isContentEditable) editors.push(doc.body);
-  if (editors.some((editor) => isShown(editor) && (editor.textContent ?? "").trim() !== "")) return true;
-  return [...doc.querySelectorAll("textarea")].some((area) => isShown(area) && area.value.trim() !== "");
+  return [
+    ...editors.filter((editor) => (editor.textContent ?? "").trim() !== "" && isShown(editor)),
+    ...[...doc.querySelectorAll("textarea")].filter((area) => area.value.trim() !== "" && isShown(area))
+  ];
+}
+
+/** "button.btn.primary «Lagre» in /Cust30460/default.aspx" - enough to find the element again. */
+function describe(element: Element): string {
+  const classes = typeof element.className === "string" && element.className.trim() ? "." + element.className.trim().split(/\s+/).join(".") : "";
+  const text = (element.textContent || (element as HTMLInputElement).value || "").trim().slice(0, 40);
+  return `${element.tagName.toLowerCase()}${element.id ? "#" + element.id : ""}${classes} «${text}» in ${element.ownerDocument.location?.pathname ?? "?"}`;
 }
