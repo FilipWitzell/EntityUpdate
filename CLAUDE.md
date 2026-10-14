@@ -39,6 +39,16 @@ Firma, Person, Prosjekt, Sak og Salg. Startet som kopi av SaleUpdate
   `MyFieldLayout.<entitet>`. Salg beholder `SaleUpdate`-nøklene, så eksisterende oppsett følger med.
 - Lagring er AV til `VITE_ALLOW_SAVE=true` settes. Det er satt i `.env.cust30460.local` (gitignored), så bygg for Cust30460 kan lagre.
 
+## Kortet ved siden av panelet
+
+`src/services/superOfficeCard.ts` leser SuperOffice-vinduet (samme opphav som panelet) og rammene i det:
+
+- Kortet er i redigeringsmodus («Lagre» og «Avbryt» vises): panelet lagrer ikke posten som står på kortet.
+- Noen skriver (tekst i en editor eller et tekstfelt), eller vinduet kan ikke leses: panelet verken laster
+  kortet på nytt eller flytter det til en annen post. Lagring i panelet går likevel.
+- Etter lagring lastes kortet på nytt med `refresh` når det viser samme post (SoProtocol laster ikke en
+  sak på nytt), ellers åpnes posten med SoProtocol.
+
 ## Én web panel-URL for alle kort
 
 `src/services/superOfficeContext.ts` leser SuperOffice-vinduets adresse og finner kortet ut fra
@@ -92,8 +102,7 @@ https://app.superoffice.com/Cust30460/CS/scripts/blogic.fcgi?action=doScript&inc
 
 1. Kategori på sak viser «-» selv om saken har en kategori (Salg/Bestilling på sak 39). Sjekk
    hvordan `Category` ser ut på `/api/v1/Ticket/39` mot `idField` og MDO-listen `ejcategory`.
-2. At lagring av `x_product` som rent tall godtas. (Lesing er bekreftet: Product viser CW på sak 39,
-   og Utstyr ble funnet automatisk.)
+2. (Bekreftet: lagring av ekstrafelt som rent tall virker, Product og Utstyr på sak 39.)
 3. Person: feltnavn på REST-entiteten (`Position`, `Retired`), MDO-listen `position`, udef-arkivet
    `Person`, arbeidslistekolonnene (`fullName`, `title`) og persontabell 6 for utvalg. Prosjekt: udef-
    arkivet `Project`, `Description` og arbeidslistekolonnen `projectNumber`.
@@ -102,7 +111,8 @@ https://app.superoffice.com/Cust30460/CS/scripts/blogic.fcgi?action=doScript&inc
    er konfliktsjekken på sak av.
 6. At panelet lastes på nytt og finner riktig kort når man bytter kort i SuperOffice. Hvis ikke,
    må panelet sjekke adressen på nytt når det får fokus.
-7. SoProtocol `ticket.main?ticket_id=` for å åpne saken etter lagring.
+7. Kortvakten (`services/superOfficeCard.ts`) mot ekte SuperOffice: at «Lagre»/«Avbryt» i kortets
+   redigeringsmodus og meldingseditoren på sak blir funnet, og at `refresh` laster saken på nytt.
 
 ## Neste steg
 

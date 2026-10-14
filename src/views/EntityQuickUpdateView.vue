@@ -175,7 +175,8 @@
   import { ENTITIES, ENTITY_DEMOS } from "@/config/entities";
   import { applyLayout, completeLayout, withStandardMinimum } from "@/config/fieldLayout";
   import { optionListKey } from "@/config/entityValues";
-  import { jumpTo } from "@/services/so-cross-messaging";
+  import { jumpTo, refreshSuperOffice } from "@/services/so-cross-messaging";
+  import { cardIsBusy, readCardState } from "@/services/superOfficeCard";
   import { IN_DEV_MODE, SUPEROFFICE_URL } from "@/superoffice-config/superoffice-config";
   import { DEV_SUPEROFFICE_URL } from "@/superoffice-config/superoffice-url";
   import type { FieldLayouts, FieldValue, LayoutLevel, ListItem, SavedLayout } from "@/types/Fields";
@@ -449,6 +450,11 @@
   /** Saves; returns true when the record was saved. "next" moves on to the next record in the list afterwards. */
   async function save(after: "stay" | "next" = "stay"): Promise<boolean> {
     if (!snapshot.value) return false;
+    // The card shows this record with unsaved changes of its own: saving here would cross them.
+    if (!props.demo && snapshot.value.id === contextId.value && readCardState().editing) {
+      ElMessage.warning(`${capitalize(config.noun.definite)} har ulagrede endringer i SuperOffice. Lagre eller avbryt dem der først.`);
+      return false;
+    }
     // Important fields without a value stop the save: say which, and show where they are.
     if (missingText.value) {
       saveBlocked.value = true;
@@ -495,10 +501,30 @@
       worklist.value.goNext();
       return true;
     }
-    // Reopen the card so it shows the saved values, like pressing F5.
-    if (!props.demo) openCard(id);
+    if (!props.demo) showSavedOnCard(id);
     await reload();
     return true;
+  }
+
+  /**
+   * Makes the SuperOffice card show the saved values. The card already showing this record is reloaded,
+   * like pressing F5 - opening it again through SoProtocol does not reload a ticket card. Any other record
+   * is opened on the card. Failures are only logged: the save has already succeeded.
+   */
+  function showSavedOnCard(id: number) {
+    if (id !== contextId.value) {
+      openCard(id);
+      return;
+    }
+    if (cardIsBusy()) {
+      ElMessage.info("Kortet er ikke lastet på nytt, fordi noe er under arbeid der. Trykk Oppdater i SuperOffice når du er klar.");
+      return;
+    }
+    try {
+      refreshSuperOffice();
+    } catch (e) {
+      console.warn("Could not refresh the card:", e);
+    }
   }
 
   /**
@@ -525,6 +551,11 @@
    * Failures are only logged: a save has already succeeded when this runs after saving.
    */
   function openCard(id: number) {
+    // Moving the card on would throw away what is being written or changed there; the panel moves on alone.
+    if (cardIsBusy()) {
+      ElMessage.info("Kortet i SuperOffice er ikke flyttet, fordi noe er under arbeid der.");
+      return;
+    }
     try {
       jumpTo(config.cardProtocol(id));
       contextId.value = id;

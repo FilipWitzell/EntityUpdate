@@ -201,6 +201,7 @@
   import { DemoSaleAgent } from "@/agents/DemoSaleAgent";
   import { reasonListFor, SALE_FIELDS, SALE_STATUSES, TRAILING_FIELDS } from "@/config/saleFields";
   import { jumpTo } from "@/services/so-cross-messaging";
+  import { cardIsBusy, readCardState } from "@/services/superOfficeCard";
   import { IN_DEV_MODE, SUPEROFFICE_URL } from "@/superoffice-config/superoffice-config";
   import { DEV_SUPEROFFICE_URL } from "@/superoffice-config/superoffice-url";
   import FieldLayoutDrawer from "@/components/FieldLayoutDrawer.vue";
@@ -742,6 +743,11 @@
   /** Saves; returns true when the sale was saved. "next" moves on to the next sale in the list afterwards. */
   async function save(after: "stay" | "next" = "stay"): Promise<boolean> {
     if (!sale.value) return false;
+    // The card shows this sale with unsaved changes of its own: saving here would cross them.
+    if (!props.demo && sale.value.saleId === contextSaleId.value && readCardState().editing) {
+      ElMessage.warning("Salget har ulagrede endringer i SuperOffice. Lagre eller avbryt dem der først.");
+      return false;
+    }
     // Important fields without a value stop the save: say which, and show where they are.
     if (missingText.value) {
       saveBlocked.value = true;
@@ -818,6 +824,11 @@
    * Failures are only logged: a save has already succeeded when this runs after saving.
    */
   function openSaleCard(saleId: number) {
+    // Reopening or moving the card would throw away what is being written or changed there.
+    if (cardIsBusy()) {
+      ElMessage.info("Salgskortet er ikke lastet på nytt, fordi noe er under arbeid der.");
+      return;
+    }
     try {
       jumpTo(`sale.main?sale_id=${saleId}`);
       contextSaleId.value = saleId;
