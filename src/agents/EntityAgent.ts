@@ -5,12 +5,14 @@ import {
   fetchExtraTableDisplayField,
   fetchExtraTableRows,
   fetchMDOList,
+  fetchPersonsOnContact,
   fetchUdefColumns,
+  searchPersons,
   type ExtraFieldInfo
 } from "@/agents/superOfficeLists";
 import { tidyLabel, tidyListName } from "@/config/superOfficeValues";
 import { EntityChangedError } from "@/agents/EntityChangedError";
-import { optionListKey, readValues, writeValues } from "@/config/entityValues";
+import { optionListKey, readNames, readValues, writeValues } from "@/config/entityValues";
 import type { SuperOfficeObject } from "@/types/SuperOfficeObject";
 import type { FieldLayouts, LayoutLevel, ListItem, SavedLayout } from "@/types/Fields";
 import type {
@@ -44,8 +46,18 @@ export class EntityAgent implements EntityDataSource {
       title: this.config.titleOf(entity),
       subtitle: this.config.subtitleOf(entity),
       values: readValues(entity, [...this.config.fields, ...custom]),
+      names: readNames(entity, this.config.fields),
+      contactId: this.config.contactIdOf?.(entity),
       ...this.savedBy(entity)
     };
+  }
+
+  GetPersons(contactId: number): Promise<ListItem[]> {
+    return fetchPersonsOnContact(this.agent, contactId);
+  }
+
+  SearchPersons(query: string): Promise<ListItem[]> {
+    return searchPersons(this.agent, query);
   }
 
   /** Every list the fields pick from: MDO lists, and rows of extra tables. Read once per panel. */
@@ -58,11 +70,16 @@ export class EntityAgent implements EntityDataSource {
         })
       ).entries()
     ];
+    // A list that can't be read (e.g. a list name this tenant does not have) leaves only its own field empty.
     const lists = await Promise.all(
-      fields.map(([, field]) =>
-        field.extraTable
+      fields.map(([key, field]) =>
+        (field.extraTable
           ? fetchExtraTableRows(this.agent, field.extraTable.table, field.extraTable.displayField)
           : fetchMDOList(this.agent, field.mdoList!)
+        ).catch((e) => {
+          console.error(`Could not read the list ${key}:`, e);
+          return [] as ListItem[];
+        })
       )
     );
     return Object.fromEntries(fields.map(([key], index) => [key, lists[index]!]));

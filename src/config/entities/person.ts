@@ -15,7 +15,7 @@ export const PERSON: EntityConfig = {
     { key: "firstname", property: "Firstname", label: "Fornavn", kind: "text", group: "Nøkkelinfo" },
     { key: "lastname", property: "Lastname", label: "Etternavn", kind: "text", group: "Nøkkelinfo" },
     { key: "title", property: "Title", label: "Tittel", kind: "text", group: "Nøkkelinfo" },
-    { key: "positionId", property: "Position", mdoList: "position", label: "Stilling", kind: "select", group: "Nøkkelinfo" },
+    { key: "positionId", property: "Position", mdoList: "perspos", label: "Stilling", kind: "select", group: "Nøkkelinfo" },
     {
       key: "associateId",
       property: "Associate",
@@ -26,7 +26,49 @@ export const PERSON: EntityConfig = {
       group: "Nøkkelinfo",
       important: true
     },
-    { key: "retired", property: "Retired", label: "Sluttet", kind: "checkbox", group: "Klassifisering", hiddenByDefault: true }
+    { key: "retired", property: "Retired", label: "Sluttet", kind: "checkbox", group: "Klassifisering", hiddenByDefault: true },
+    // In the field picker, off until someone turns them on.
+    { key: "middleName", property: "MiddleName", label: "Mellomnavn", kind: "text", group: "Nøkkelinfo", hiddenByDefault: true },
+    {
+      key: "categoryId",
+      property: "Category",
+      mdoList: "category",
+      label: "Kategori",
+      kind: "select",
+      group: "Klassifisering",
+      hiddenByDefault: true
+    },
+    {
+      key: "businessId",
+      property: "Business",
+      mdoList: "business",
+      label: "Forretning",
+      kind: "select",
+      group: "Klassifisering",
+      hiddenByDefault: true
+    },
+    {
+      key: "countryId",
+      property: "Country",
+      idField: "CountryId",
+      mdoList: "country",
+      label: "Land",
+      kind: "select",
+      group: "Klassifisering",
+      hiddenByDefault: true
+    },
+    {
+      key: "supportAssociateId",
+      property: "SupportAssociate",
+      idField: "AssociateId",
+      mdoList: "associate",
+      label: "Supportkontakt",
+      kind: "select",
+      group: "Klassifisering",
+      hiddenByDefault: true
+    },
+    { key: "personNumber", property: "PersonNumber", label: "Nummer", kind: "text", group: "Klassifisering", hiddenByDefault: true },
+    { key: "description", property: "Description", label: "Notat", kind: "longtext", group: "Notat", hiddenByDefault: true }
   ],
   udef: { provider: "Person", columnPrefix: "personUdef/" },
   worklist: {

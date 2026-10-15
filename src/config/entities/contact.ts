@@ -26,7 +26,33 @@ export const CONTACT: EntityConfig = {
       important: true
     },
     { key: "businessId", property: "Business", mdoList: "business", label: "Forretning", kind: "select", group: "Klassifisering" },
-    { key: "orgNr", property: "OrgNr", label: "Org.nr", kind: "text", group: "Klassifisering" }
+    { key: "orgNr", property: "OrgNr", label: "Org.nr", kind: "text", group: "Klassifisering" },
+    // In the field picker, off until someone turns them on.
+    { key: "number1", property: "Number1", label: "Kode", kind: "text", group: "Klassifisering", hiddenByDefault: true },
+    { key: "number2", property: "Number2", label: "Nummer", kind: "text", group: "Klassifisering", hiddenByDefault: true },
+    {
+      key: "countryId",
+      property: "Country",
+      idField: "CountryId",
+      mdoList: "country",
+      label: "Land",
+      kind: "select",
+      group: "Klassifisering",
+      hiddenByDefault: true
+    },
+    {
+      key: "supportAssociateId",
+      property: "SupportAssociate",
+      idField: "AssociateId",
+      mdoList: "associate",
+      label: "Supportkontakt",
+      kind: "select",
+      group: "Klassifisering",
+      hiddenByDefault: true
+    },
+    { key: "noMailing", property: "NoMailing", label: "Ingen utsendelser", kind: "checkbox", group: "Klassifisering", hiddenByDefault: true },
+    { key: "stop", property: "Xstop", label: "Stopp", kind: "checkbox", group: "Klassifisering", hiddenByDefault: true },
+    { key: "description", property: "Description", label: "Notat", kind: "longtext", group: "Notat", hiddenByDefault: true }
   ],
   udef: { provider: "FindContact", columnPrefix: "contactUdef/" },
   worklist: {

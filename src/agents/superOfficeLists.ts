@@ -121,3 +121,28 @@ export async function fetchUdefColumns(agent: SuperOfficeAgent, provider: string
       return { progId: column.Name.substring(columnPrefix.length), label: tidyLabel(column.DisplayName), kind, numberType };
     });
 }
+
+/** The persons on a company, by name. */
+export async function fetchPersonsOnContact(agent: SuperOfficeAgent, contactId: number): Promise<ListItem[]> {
+  if (!contactId) return [];
+  const persons = await agent.QueryEntities({
+    entity: "Person",
+    select: "personId,fullName",
+    filter: `contactId eq ${contactId}`,
+    orderBy: "fullName asc",
+    top: 500
+  });
+  return persons.map((person) => ({ id: Number(person.personId), name: String(person.fullName ?? "") }));
+}
+
+/** Persons on any company whose name contains the query. */
+export async function searchPersons(agent: SuperOfficeAgent, query: string): Promise<ListItem[]> {
+  const persons = await agent.QueryEntities({
+    entity: "Person",
+    select: "personId,fullName",
+    filter: `fullName contains '${query.replace(/'/g, "''")}'`,
+    orderBy: "fullName asc",
+    top: 50
+  });
+  return persons.map((person) => ({ id: Number(person.personId), name: String(person.fullName ?? "") }));
+}

@@ -58,15 +58,30 @@
     class="full-width"
   />
 
-  <!-- Projects and companies are searched as you type. A sale always has a company, so it can not be cleared. -->
+  <el-date-picker
+    v-else-if="kind === 'datetime'"
+    v-model="model"
+    type="datetime"
+    size="small"
+    format="DD.MM.YYYY HH:mm"
+    value-format="YYYY-MM-DDTHH:mm:ss"
+    :style="{ width: '100%' }"
+    :disabled="disabled"
+    class="full-width"
+  />
+
+  <!--
+    Projects and companies are searched as you type, and so are persons when a search is given (otherwise
+    the persons are a plain list). A sale always has a company, so it can not be cleared.
+  -->
   <el-select
-    v-else-if="kind === 'project' || kind === 'contact'"
+    v-else-if="kind === 'project' || kind === 'contact' || (kind === 'person' && search)"
     v-model="model"
     size="small"
     filterable
     remote
-    :clearable="kind === 'project'"
-    :placeholder="kind === 'contact' ? 'Søk etter firma...' : 'Søk etter prosjekt...'"
+    :clearable="kind !== 'contact'"
+    :placeholder="searchPlaceholder"
     no-data-text="Ingen funnet"
     no-match-text="Ingen treff"
     :remote-method="runSearch"
@@ -101,9 +116,15 @@
     kind: FieldKind;
     options: ListItem[];
     disabled?: boolean;
-    /** Only used by the searched kinds, "project" and "contact". */
+    /** Only used by the searched kinds: "project", "contact" and (when given) "person". */
     search?: (query: string) => Promise<ListItem[]>;
   }>();
+
+  const searchPlaceholder = computed(() => {
+    if (props.kind === "contact") return "Søk etter firma...";
+    if (props.kind === "person") return "Velg eller søk etter person...";
+    return "Søk etter prosjekt...";
+  });
 
   const emit = defineEmits<{ found: [items: ListItem[]] }>();
 

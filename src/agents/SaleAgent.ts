@@ -4,7 +4,7 @@ import type { SuperOfficeObject } from "@/types/SuperOfficeObject";
 import { decodeUdefValue, encodeUdefValue, tidyListName } from "@/config/superOfficeValues";
 import { LayoutPreferences } from "@/agents/LayoutPreferences";
 import { dateOrNull } from "@/config/entityValues";
-import { fetchMDOList, fetchUdefColumns, type MDOListItem } from "@/agents/superOfficeLists";
+import { fetchMDOList, fetchPersonsOnContact, fetchUdefColumns, type MDOListItem } from "@/agents/superOfficeLists";
 import { SaleChangedError } from "@/agents/SaleChangedError";
 import type {
   FieldValue,
@@ -236,16 +236,8 @@ export class SaleAgent implements SaleDataSource {
     }));
   }
 
-  async GetPersons(contactId: number): Promise<ListItem[]> {
-    if (!contactId) return [];
-    const persons = await this.agent.QueryEntities({
-      entity: "Person",
-      select: "personId,fullName",
-      filter: `contactId eq ${contactId}`,
-      orderBy: "fullName asc",
-      top: 500
-    });
-    return persons.map((person) => ({ id: Number(person.personId), name: String(person.fullName ?? "") }));
+  GetPersons(contactId: number): Promise<ListItem[]> {
+    return fetchPersonsOnContact(this.agent, contactId);
   }
 
   /** The earliest activity on the sale that is not completed - an overdue one counts, it still needs doing. */

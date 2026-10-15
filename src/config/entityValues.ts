@@ -1,7 +1,7 @@
 // Relative, so the tests can load this module straight from node.
 import { decodeUdefValue, encodeUdefValue } from "./superOfficeValues.ts";
 import type { EntityFieldDefinition, EntityValues, RestEntity } from "@/types/EntityQuickUpdate";
-import type { FieldValue } from "@/types/Fields";
+import type { FieldValue, ListItem } from "@/types/Fields";
 
 /**
  * Reading and writing field values on a REST entity, driven by the field definitions. Kept apart from
@@ -21,11 +21,12 @@ export function readField(entity: RestEntity, definition: EntityFieldDefinition)
   if (!definition.property) return null;
 
   const raw = entity[definition.property];
-  if (definition.kind === "select") {
+  if (holdsObject(definition)) {
     const id = (raw as Record<string, unknown> | null | undefined)?.[definition.idField ?? "Id"];
     return typeof id === "number" && id > 0 ? id : null;
   }
   if (definition.kind === "date") return dateOrNull(raw as string | null | undefined);
+  if (definition.kind === "datetime") return dateTimeOrNull(raw as string | null | undefined);
   if (definition.kind === "checkbox") return raw ? 1 : 0;
   if (raw === null || raw === undefined) return null;
   return raw as string | number;
@@ -39,6 +40,18 @@ export function readValues(entity: RestEntity, definitions: EntityFieldDefinitio
     if (!progId.endsWith(":org") && !progId.startsWith("x_")) values[`udef:${progId}`] = decodeUdefValue(asText(raw));
   }
   return values;
+}
+
+/** The current value's name in the fields that are searched (those with a nameField), by field key. */
+export function readNames(entity: RestEntity, definitions: EntityFieldDefinition[]): Record<string, ListItem> {
+  const names: Record<string, ListItem> = {};
+  for (const definition of definitions) {
+    if (!definition.property || !definition.nameField) continue;
+    const related = entity[definition.property] as Record<string, unknown> | null | undefined;
+    const id = related?.[definition.idField ?? "Id"];
+    if (typeof id === "number" && id > 0) names[definition.key] = { id, name: String(related?.[definition.nameField] ?? "") };
+  }
+  return names;
 }
 
 /** Writes the changed values onto the entity, in the form SuperOffice expects. Returns the same entity. */
@@ -70,8 +83,13 @@ export function writeValues(entity: RestEntity, changes: EntityValues, definitio
     if (definition.kind === "select") {
       // An emptied list value is id 0, which is how SuperOffice stores "none".
       entity[definition.property] = { [definition.idField ?? "Id"]: Number(value ?? 0) };
+    } else if (holdsObject(definition)) {
+      // A related record (a person, ...) is left empty as null, not as id 0.
+      entity[definition.property] = value ? { [definition.idField ?? "Id"]: Number(value) } : null;
     } else if (definition.kind === "date") {
       entity[definition.property] = value ? `${value}T00:00:00` : null;
+    } else if (definition.kind === "datetime") {
+      entity[definition.property] = value ? String(value) : null;
     } else if (definition.kind === "checkbox") {
       entity[definition.property] = Number(value) === 1;
     } else if (definition.kind === "number" || definition.kind === "amount" || definition.kind === "percent") {
@@ -81,6 +99,11 @@ export function writeValues(entity: RestEntity, changes: EntityValues, definitio
     }
   }
   return entity;
+}
+
+/** Whether a built-in field's property holds an object with the id: a list item, or a related record. */
+function holdsObject(definition: EntityFieldDefinition): boolean {
+  return ["select", "person", "contact", "project"].includes(definition.kind);
 }
 
 /** Whether a field's value is the id of a row or list item (relations, MDO lists), rather than text. */
@@ -151,4 +174,10 @@ function asText(raw: ExtraValue | undefined): string | null | undefined {
 export function dateOrNull(value: string | null | undefined): string | null {
   if (!value || value.startsWith("0001")) return null;
   return value.substring(0, 10);
+}
+
+/** "2027-03-01T14:30:00Z" -> "2027-03-01T14:30:00"; SuperOffice's empty date (year 0001) and none -> null. */
+export function dateTimeOrNull(value: string | null | undefined): string | null {
+  if (!value || value.startsWith("0001")) return null;
+  return value.substring(0, 19);
 }

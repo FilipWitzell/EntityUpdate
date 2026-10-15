@@ -85,7 +85,9 @@
                 :model-value="row.next"
                 :kind="row.definition.kind"
                 :options="optionsFor(row)"
+                :search="row.definition.kind === 'person' ? searchPersons : undefined"
                 @update:model-value="(value: FieldValue | undefined) => onEdit(row, value ?? null)"
+                @found="addPersons"
               />
             </div>
           </template>
@@ -208,6 +210,8 @@
 
   const snapshot: Ref<EntitySnapshot | null> = ref(null);
   const options: Ref<Record<string, ListItem[]> | null> = ref(null);
+  /** The persons the person fields offer: those on the record's company, and those found by searching. */
+  const personOptions: Ref<ListItem[]> = ref([]);
   const rows: Ref<FieldRow[]> = ref([]);
   const collapsedGroups: Ref<Set<string>> = ref(new Set());
 
@@ -293,6 +297,29 @@
     snapshot.value = loaded;
     options.value = lists;
     rows.value = buildRows(loaded);
+    personOptions.value = [];
+    loadPersons(loaded);
+  }
+
+  /** The persons on the record's company. Read on its own, so a failure only leaves the current person. */
+  async function loadPersons(loaded: EntitySnapshot) {
+    if (!loaded.contactId || !allDefinitions.value.some((definition) => definition.kind === "person")) return;
+    try {
+      const persons = await dataSource.GetPersons(loaded.contactId);
+      // Ignore an answer that comes back after another record was opened.
+      if (snapshot.value?.id === loaded.id) addPersons(persons);
+    } catch (e) {
+      console.error("Could not fetch the persons on the company:", e);
+    }
+  }
+
+  function searchPersons(query: string): Promise<ListItem[]> {
+    return dataSource.SearchPersons(query);
+  }
+
+  function addPersons(items: ListItem[]) {
+    const known = new Set(personOptions.value.map((item) => item.id));
+    personOptions.value = [...personOptions.value, ...items.filter((item) => !known.has(item.id))];
   }
 
   async function reload() {
@@ -384,6 +411,11 @@
 
   function optionsFor(row: FieldRow): ListItem[] {
     if (row.definition.choices) return row.definition.choices;
+    if (row.definition.kind === "person") {
+      // The current person first, also when they are not (or no longer) on the company.
+      const current = snapshot.value?.names?.[row.definition.key];
+      return current && !personOptions.value.some((item) => item.id === current.id) ? [current, ...personOptions.value] : personOptions.value;
+    }
     const key = optionListKey(row.definition);
     return key ? (options.value?.[key] ?? []) : [];
   }
@@ -581,7 +613,16 @@
         return `${value} %`;
       case "date":
         return new Date(String(value)).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
+      case "datetime":
+        return new Date(String(value)).toLocaleString("nb-NO", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
       case "select":
+      case "person":
         return optionsFor(row).find((item) => item.id === value)?.name ?? "-";
       case "longtext":
         // One line in the table and the summary - the whole text is in the field itself.

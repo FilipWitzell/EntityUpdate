@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readValues, writeValues } from "../src/config/entityValues.ts";
+import { readNames, readValues, writeValues } from "../src/config/entityValues.ts";
 
 const definitions = [
   { key: "name", property: "Name", label: "Navn", kind: "text", group: "Nøkkelinfo" },
@@ -142,4 +142,44 @@ test("extra fields are written back in the form they came in", () => {
 test("extra fields are not also read as user-defined fields", () => {
   const values = readValues({ CustomFields: { x_product: 2, "SuperOffice:1": "Hei" } }, [product]);
   assert.deepEqual(Object.keys(values).sort(), ["udef:SuperOffice:1", "x_product"]);
+});
+
+const ticketFields = [
+  {
+    key: "categoryId",
+    property: "Category",
+    idField: "TicketCategoryId",
+    mdoList: "ejcategory",
+    label: "Kategori",
+    kind: "select",
+    group: "Klassifisering"
+  },
+  { key: "personId", property: "Person", idField: "PersonId", nameField: "FullName", label: "Kontaktperson", kind: "person", group: "Nøkkelinfo" },
+  { key: "deadline", property: "Deadline", label: "Frist", kind: "datetime", group: "Oppfølging" }
+];
+
+test("a ticket's category, contact person and deadline are read, with the person's name", () => {
+  const entity = {
+    Category: { TicketCategoryId: 4, Name: "Bestilling" },
+    Person: { PersonId: 1001, FullName: "Anne Berg", ContactId: 500 },
+    Deadline: "2026-10-20T12:30:00Z"
+  };
+  assert.deepEqual(readValues(entity, ticketFields), { categoryId: 4, personId: 1001, deadline: "2026-10-20T12:30:00" });
+  assert.deepEqual(readNames(entity, ticketFields), { personId: { id: 1001, name: "Anne Berg" } });
+});
+
+test("no contact person and SuperOffice's empty date are read as no value", () => {
+  const entity = { Category: { TicketCategoryId: 0 }, Person: null, Deadline: "0001-01-01T00:00:00" };
+  assert.deepEqual(readValues(entity, ticketFields), { categoryId: null, personId: null, deadline: null });
+  assert.deepEqual(readNames(entity, ticketFields), {});
+});
+
+test("a new contact person and deadline are written; an emptied person is null", () => {
+  const entity = { Person: { PersonId: 1001, FullName: "Anne Berg" }, Deadline: null };
+  writeValues(entity, { personId: 1012, deadline: "2026-11-01T09:00:00" }, ticketFields);
+  assert.deepEqual(entity.Person, { PersonId: 1012 });
+  assert.equal(entity.Deadline, "2026-11-01T09:00:00");
+  writeValues(entity, { personId: null, deadline: null }, ticketFields);
+  assert.equal(entity.Person, null);
+  assert.equal(entity.Deadline, null);
 });

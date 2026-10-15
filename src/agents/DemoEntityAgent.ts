@@ -11,6 +11,8 @@ export interface EntityDemoData {
   selections: (ListItem & { recordIds: number[] })[];
   /** The user-defined and extra fields, as SuperOffice would report them. */
   customFields: EntityFieldDefinition[];
+  /** The persons on each company, by company id, for the person fields. */
+  persons?: Record<number, ListItem[]>;
 }
 
 /**
@@ -80,11 +82,32 @@ export class DemoEntityAgent implements EntityDataSource {
     return ids.flatMap((id) => this.data.records.filter((record) => record.id === id)).map(toWorklistItem);
   }
 
-  async Update(id: number, changes: EntityValues): Promise<void> {
+  async GetPersons(contactId: number): Promise<ListItem[]> {
+    await pause();
+    return this.data.persons?.[contactId] ?? [];
+  }
+
+  async SearchPersons(query: string): Promise<ListItem[]> {
+    await pause();
+    const lowerQuery = query.toLowerCase();
+    return Object.values(this.data.persons ?? {})
+      .flat()
+      .filter((person) => person.name.toLowerCase().includes(lowerQuery));
+  }
+
+  async Update(id: number, changes: EntityValues, definitions: EntityFieldDefinition[]): Promise<void> {
     await pause();
     const record = this.data.records.find((item) => item.id === id);
     if (!record) throw new Error(`Fant ikke ${id} i demodataene.`);
     Object.assign(record.values, changes);
+    // A new person is named the way SuperOffice would name it, so the panel can show it after the save.
+    const persons = Object.values(this.data.persons ?? {}).flat();
+    for (const definition of definitions.filter((field) => field.nameField && field.key in changes)) {
+      const person = persons.find((item) => item.id === changes[definition.key]);
+      record.names = { ...record.names };
+      if (person) record.names[definition.key] = person;
+      else delete record.names[definition.key];
+    }
     record.updatedAt = new Date().toISOString();
   }
 

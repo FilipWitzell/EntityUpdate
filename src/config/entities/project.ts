@@ -34,7 +34,11 @@ export const PROJECT: EntityConfig = {
       group: "Klassifisering",
       important: true
     },
-    { key: "description", property: "Description", label: "Beskrivelse", kind: "longtext", group: "Beskrivelse", hiddenByDefault: true }
+    // In the field picker, off until someone turns them on.
+    { key: "endDate", property: "EndDate", label: "Sluttdato", kind: "date", group: "Klassifisering", hiddenByDefault: true },
+    { key: "completed", property: "Completed", label: "Ferdig", kind: "checkbox", group: "Klassifisering", hiddenByDefault: true },
+    { key: "description", property: "Description", label: "Beskrivelse", kind: "longtext", group: "Beskrivelse", hiddenByDefault: true },
+    { key: "postit", property: "Postit", label: "Notat", kind: "longtext", group: "Beskrivelse", hiddenByDefault: true }
   ],
   udef: { provider: "Project", columnPrefix: "projectUdef/" },
   worklist: {

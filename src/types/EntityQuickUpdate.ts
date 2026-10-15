@@ -23,6 +23,11 @@ export interface EntityFieldDefinition extends FieldDefinition {
   mdoList?: string;
   /** For list values: the id's name inside the property object. Default "Id" (Associate uses "AssociateId"). */
   idField?: string;
+  /**
+   * For a relation that is searched rather than listed (kind "person"): the name's property inside the
+   * property object, e.g. "FullName", so the current value can be shown before anything is searched.
+   */
+  nameField?: string;
   /** An extra field (x_...), kept in CustomFields under this name, e.g. "x_product". */
   customField?: string;
   /**
@@ -52,7 +57,13 @@ export interface EntityConfig {
   /** The panel's heading and the line under it. */
   titleOf: (entity: RestEntity) => string;
   subtitleOf: (entity: RestEntity) => string;
+  /**
+   * Every built-in field the panel can edit. Fields with hiddenByDefault are not shown until someone
+   * turns them on in the field picker, so the list can hold every field worth editing.
+   */
   fields: EntityFieldDefinition[];
+  /** The company whose persons the person fields offer, e.g. the company of the ticket's contact person. */
+  contactIdOf?: (entity: RestEntity) => number;
   /** Where the user-defined fields are listed: an archive provider and its column prefix. */
   udef: { provider: string; columnPrefix: string } | null;
   worklist: WorklistConfig;
@@ -82,6 +93,10 @@ export interface EntitySnapshot {
   title: string;
   subtitle: string;
   values: EntityValues;
+  /** The current value's name in searched fields, by field key - e.g. the ticket's contact person. */
+  names?: Record<string, ListItem>;
+  /** The company whose persons the person fields offer; see EntityConfig.contactIdOf. */
+  contactId?: number;
   /** When and by whom the entity was last saved - used to notice changes made by someone else meanwhile. */
   updatedAt: string;
   updatedBy: string;
@@ -112,6 +127,10 @@ export interface EntityDataSource {
   GetOwnedBy(associateId: number): Promise<WorklistItem[]>;
   GetSelections(): Promise<ListItem[]>;
   GetSelectionItems(selectionId: number): Promise<WorklistItem[]>;
+  /** The persons on a company, for the person fields. */
+  GetPersons(contactId: number): Promise<ListItem[]>;
+  /** Persons on any company, by name, for picking a person elsewhere. */
+  SearchPersons(query: string): Promise<ListItem[]>;
   /**
    * definitions: the fields being changed, so each value is written where and how SuperOffice expects.
    * expectedUpdatedAt: the entity's updatedAt when it was loaded. If someone saved it since, an

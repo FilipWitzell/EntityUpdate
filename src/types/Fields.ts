@@ -1,9 +1,13 @@
 /** Field types shared by every entity the panel can update. */
 
 /** How a field is edited in the panel. */
-export type FieldKind = "text" | "longtext" | "amount" | "number" | "percent" | "date" | "checkbox" | "select" | "project" | "contact" | "person";
+export type FieldKind =
+  "text" | "longtext" | "amount" | "number" | "percent" | "date" | "datetime" | "checkbox" | "select" | "project" | "contact" | "person";
 
-/** Ids for list values, ISO date (YYYY-MM-DD) for dates, 1/0 for checkboxes, plain text/number otherwise. */
+/**
+ * Ids for list values, ISO date (YYYY-MM-DD) for dates, date and time (YYYY-MM-DDTHH:mm:ss) for
+ * datetimes, 1/0 for checkboxes, plain text/number otherwise.
+ */
 export type FieldValue = string | number | null;
 
 export interface ListItem {

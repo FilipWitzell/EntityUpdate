@@ -70,18 +70,34 @@ https://app.superoffice.com/Cust30460/CS/scripts/blogic.fcgi?action=doScript&inc
 
 ## Entiteter
 
+Standardfeltene kan ikke hentes automatisk fra SuperOffice: ingen kilde gir både REST-feltnavn,
+ledetekst og MDO-liste. Derfor er `fields` i hver config en katalog med alle standardfelt det er
+verdt å redigere. Felt med `hiddenByDefault` ligger i feltvelgeren (tannhjulet) til noen slår dem på.
+Feltnavn og id-navn følger REST-entiteten i dokumentasjonen (docs.superoffice.com, «Get <Entitet> Entity»).
+En MDO-liste som ikke kan leses, gir bare tom liste i sitt eget felt (`EntityAgent.GetOptions`).
+
 - **Firma (contact):**
   - Felt: Navn, Avdeling (skjult), Kategori (`category`), Vår kontakt (`associate`),
     Forretning (`business`), Org.nr.
+  - Skjult i katalogen: Kode (`Number1`), Nummer (`Number2`), Land (`country`, `CountryId`),
+    Supportkontakt (`SupportAssociate`), Ingen utsendelser (`NoMailing`), Stopp (`Xstop`), Notat (`Description`).
   - Udef-felt fra arkivet `FindContact` / `contactUdef/`.
   - Utvalg: tabell 5.
 - **Sak (ticket):**
-  - Felt: Tittel, Eier (OwnedBy/AssociateId) og Kategori (`ejcategory`), pluss alle ekstrafelt.
+  - Felt: Tittel, Eier (OwnedBy/AssociateId), Kontaktperson (`Person`/`PersonId`) og Kategori
+    (`ejcategory`, id-feltet heter `TicketCategoryId`), pluss alle ekstrafelt.
+  - Skjult i katalogen: Prioritet (`ticketpriority`, `TicketPriorityId`), Status (`ticketstatus`,
+    `TicketStatusId`), Sakstype (`tickettype`, `TicketTypeId`), Frist (`Deadline`, dato og klokkeslett).
+  - Kontaktperson (feltype `person`): personene på firmaet til nåværende kontaktperson vises som
+    liste (`contactIdOf`), og man kan søke etter personer i andre firma (`fullName contains`).
+  - «Sist endret» er `LastChanged`, så konfliktsjekken er på.
   - Utvalg: tabell 262.
-- **Person:** Fornavn, Etternavn, Tittel, Stilling (`position`), Vår kontakt (`associate`), Sluttet
-  (skjult). Udef fra arkivet `Person` / `personUdef/`. Utvalg: tabell 6 (ikke bekreftet).
+- **Person:** Fornavn, Etternavn, Tittel, Stilling (`perspos`), Vår kontakt (`associate`), Sluttet
+  (skjult). Skjult i katalogen: Mellomnavn, Kategori, Forretning, Land, Supportkontakt, Nummer
+  (`PersonNumber`), Notat. Udef fra arkivet `Person` / `personUdef/`. Utvalg: tabell 6 (ikke bekreftet).
 - **Prosjekt:** Navn, Prosjektnummer, Ansvarlig (`associate`), Type (`projecttype`), Status
-  (`projectstatus`), Beskrivelse (skjult). Udef fra arkivet `Project` / `projectUdef/`. Utvalg: tabell 11.
+  (`projectstatus`), Beskrivelse (skjult). Skjult i katalogen: Sluttdato (`EndDate`), Ferdig
+  (`Completed`), Notat (`Postit`). Udef fra arkivet `Project` / `projectUdef/`. Utvalg: tabell 11.
 - **Ekstrafelt (x_...)** hardkodes ikke. `EntityAgent` henter dem for hver entitet fra
   `GET /api/v1/<Entitet>/CustomField` (gruppe «Ekstrafelt»). Støttet: tekst, tall, avkrysning,
   dato, «velg fra liste», MDO-liste og relasjon til ekstratabell (`y_...`). Relasjonens visningsfelt
@@ -96,19 +112,21 @@ https://app.superoffice.com/Cust30460/CS/scripts/blogic.fcgi?action=doScript&inc
 
 - Deployet til Cust30460 med lagring på, og web panel er lagt inn for Firma, Person, Prosjekt, Salg og Sak.
 - Prosjekt er bekreftet: Navn, Prosjektnummer, Ansvarlig, Type og Status vises og lagres.
-- Typesjekk, 25 tester og bygg er grønne.
+- Typesjekk, 28 tester og bygg er grønne.
+- Katalogen med standardfelt og Kontaktperson på sak er testet i demo, ikke mot tenant ennå.
 
 ## Ikke verifisert mot tenant – sjekkes først
 
-1. Kategori på sak viser «-» selv om saken har en kategori (Salg/Bestilling på sak 39). Sjekk
-   hvordan `Category` ser ut på `/api/v1/Ticket/39` mot `idField` og MDO-listen `ejcategory`.
+1. Kategori på sak skal nå vises (id-feltet var feil: `TicketCategoryId`, ikke `Id`). Sjekk på sak 39.
 2. (Bekreftet: lagring av ekstrafelt som rent tall virker, Product og Utstyr på sak 39.)
-3. Person: feltnavn på REST-entiteten (`Position`, `Retired`), MDO-listen `position`, udef-arkivet
-   `Person`, arbeidslistekolonnene (`fullName`, `title`) og persontabell 6 for utvalg. Prosjekt: udef-
-   arkivet `Project`, `Description` og arbeidslistekolonnen `projectNumber`.
+3. Person: udef-arkivet `Person`, arbeidslistekolonnene (`fullName`, `title`) og persontabell 6 for
+   utvalg. Stilling bruker nå MDO-listen `perspos` (docs har ingen `position`). Prosjekt: udef-arkivet
+   `Project` og arbeidslistekolonnen `projectNumber`.
 4. Filteret «Mine saker» `ownedBy eq <id>` mot `Ticket`, og firmalistens `orgnr` / `associateId`.
-5. Feltnavn for «sist endret» på TicketEntity (`updatedAtProperty` i ticket-configen). Uten det
-   er konfliktsjekken på sak av.
+5. Sak: at bytte av kontaktperson lagres med `Person: { PersonId }`, og om firmaet på saken følger med.
+   At MDO-listene `ticketpriority`, `ticketstatus` og `tickettype` har samme id som entiteten.
+   At `Deadline` kommer uten tidssone (verdien skrives tilbake uten `Z`). At personsøket
+   (`Person`-arkivet, `fullName contains`) virker.
 6. At panelet lastes på nytt og finner riktig kort når man bytter kort i SuperOffice. Hvis ikke,
    må panelet sjekke adressen på nytt når det får fokus.
 7. Kortvakten (`services/superOfficeCard.ts`) mot ekte SuperOffice: at «Lagre»/«Avbryt» i kortets
@@ -118,6 +136,9 @@ https://app.superoffice.com/Cust30460/CS/scripts/blogic.fcgi?action=doScript&inc
 
 - Teste og rette punktene over. Lagring er slått på i Cust30460-bygget.
 - Filter for inaktive produkter i `y_product`, hvis tabellen har et slikt felt.
+- Sak: Salg og Prosjekt som søkbare relasjoner (`Sale`/`SaleId`, `Project`/`ProjectId`), og
+  sekundære personer. Salg: gå gjennom `saleFields.ts` og legg til skjulte standardfelt.
+- Fødselsdato på person er utelatt: `BirthDate` er UTC og kan bli feil dag med dagens dato-felt.
 - På sikt: flytte Salg inn i det generiske panelet, med salgslogikken som utvidelse.
 
 ## Kjente småting
