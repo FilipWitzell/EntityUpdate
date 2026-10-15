@@ -66,6 +66,9 @@
             >
               <span class="field-label cell-label">
                 {{ row.definition.label }}
+                <span v-if="rulesFor(row).length > 0" class="field-rule" :title="ruleTitle(row)">
+                  <PhLock :size="11" weight="bold" /> Låst av regel
+                </span>
               </span>
               <span class="field-current cell-current" :class="{ strong: row.definition.kind === 'amount' }">
                 <span v-if="isMissing(row)" class="missing-tag" title="Må fylles ut før du kan lagre">
@@ -85,6 +88,7 @@
                 :model-value="row.next"
                 :kind="row.definition.kind"
                 :options="optionsFor(row)"
+                :disabled="rulesFor(row).length > 0"
                 :search="row.definition.kind === 'person' ? searchPersons : undefined"
                 @update:model-value="(value: FieldValue | undefined) => onEdit(row, value ?? null)"
                 @found="addPersons"
@@ -181,6 +185,7 @@
   import { cardIsBusy, readCardState } from "@/services/superOfficeCard";
   import { IN_DEV_MODE, SUPEROFFICE_URL } from "@/superoffice-config/superoffice-config";
   import { DEV_SUPEROFFICE_URL } from "@/superoffice-config/superoffice-url";
+  import type { SaveRule } from "@/config/beforeSave";
   import type { FieldLayouts, FieldValue, LayoutLevel, ListItem, SavedLayout } from "@/types/Fields";
   import type { EntityDataSource, EntityFieldDefinition, EntityName, EntitySnapshot, EntityValues } from "@/types/EntityQuickUpdate";
 
@@ -216,6 +221,11 @@
   const collapsedGroups: Ref<Set<string>> = ref(new Set());
 
   const udefDefinitions: Ref<EntityFieldDefinition[]> = ref([]);
+  /**
+   * The active before-save triggers in SuperOffice. Saving here skips them, so the fields they check are
+   * locked to the card, and triggers that check something unknown are asked about before saving.
+   */
+  const saveRules: Ref<SaveRule[]> = ref([]);
   const layouts: Ref<FieldLayouts> = ref({ standard: null, personal: null });
   const canEditStandard: Ref<boolean> = ref(false);
   const layoutOpen: Ref<boolean> = ref(false);
@@ -276,6 +286,7 @@
 
   onMounted(async () => {
     try {
+      loadSaveRules();
       await Promise.all([load(), loadFieldSettings()]);
       // The record may arrive before the layout - build the rows again with the layout in place.
       if (snapshot.value) rows.value = buildRows(snapshot.value);
@@ -350,6 +361,31 @@
       const kept = existing.get(row.definition.key);
       return kept ? { ...kept, definition: row.definition } : row;
     });
+  }
+
+  /** Read on its own, so the panel shows while they load; a failure is said, since rules then go unchecked. */
+  async function loadSaveRules() {
+    try {
+      saveRules.value = await dataSource.GetSaveRules();
+    } catch (e) {
+      console.error("Could not read the before-save triggers:", e);
+      ElMessage({
+        type: "warning",
+        message: "Kunne ikke lese reglene for lagring i SuperOffice. Felt som styres av regler, er ikke låst.",
+        duration: 8000,
+        showClose: true
+      });
+    }
+  }
+
+  /** The before-save triggers that check this field. */
+  function rulesFor(row: FieldRow): SaveRule[] {
+    return saveRules.value.filter((rule) => rule.fieldKeys.includes(row.definition.key));
+  }
+
+  function ruleTitle(row: FieldRow): string {
+    const names = rulesFor(row).map((rule) => `«${rule.name}»`);
+    return `Kontrolleres av ${names.join(", ")} når ${config.noun.indefinite} lagres på kortet. Endre det der, så kjører regelen.`;
   }
 
   /** Field settings: the user-defined fields, both layouts and whether this user may change the standard. */
@@ -452,6 +488,25 @@
     collapsedGroups.value = next;
   }
 
+  /**
+   * Triggers whose checks the panel can not see (they read no field by name) do not run when saving
+   * here - so the user decides. Fields that known triggers check are locked and never changed here.
+   */
+  async function confirmUnknownRules(): Promise<boolean> {
+    const unknown = saveRules.value.filter((rule) => rule.unknownFields);
+    if (unknown.length === 0) return true;
+    try {
+      await ElMessageBox.confirm(
+        `${capitalize(config.noun.definite)} har regler i SuperOffice som bare kjører når du lagrer på kortet: ${unknown.map((rule) => `«${rule.name}»`).join(", ")}. Panelet kan ikke se hva de kontrollerer.`,
+        "Lagre uten disse reglene?",
+        { confirmButtonText: "Lagre likevel", cancelButtonText: "Avbryt", type: "warning" }
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /** Asks before unsaved changes are thrown away by switching record. */
   async function confirmLeave(): Promise<boolean> {
     const count = changedRows.value.length;
@@ -498,6 +553,7 @@
       return false;
     }
     saveBlocked.value = false;
+    if (!(await confirmUnknownRules())) return false;
     posting.value = true;
 
     const id = snapshot.value.id;
@@ -519,9 +575,9 @@
         await dataSource.Update(id, changes, definitions);
       }
     } catch (e) {
-      ElMessage.error(`Kunne ikke lagre ${config.noun.definite}. Sjekk at du har tilgang til å endre det.`);
       console.error(e);
       posting.value = false;
+      ElMessage.error(`Kunne ikke lagre ${config.noun.definite}. Sjekk at du har tilgang til å endre det.`);
       return false;
     }
 
@@ -892,6 +948,15 @@
     font-size: 11px;
     color: var(--muted);
     font-weight: 400;
+  }
+  .field-rule {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--muted);
+    cursor: help;
   }
 
   .field-row.missing {

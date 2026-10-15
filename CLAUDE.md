@@ -49,6 +49,26 @@ Firma, Person, Prosjekt, Sak og Salg. Startet som kopi av SaleUpdate
 - Etter lagring lastes kortet på nytt med `refresh` når det viser samme post (SoProtocol laster ikke en
   sak på nytt), ellers åpnes posten med SoProtocol.
 
+## Triggere i SuperOffice
+
+Lagring via REST hopper over kortets CRMScript-triggere. Det er bekreftet i Cust30460: orgnr-triggeren
+stopper `1234` på kortet, men panelet lagret det. SuperOffice har heller ingen API-operasjon som kjører
+en trigger. `ExecuteAsEvent` kjører bare skript fra «Macros and scripts», så det er forkastet.
+
+Derfor leser panelet triggerne i stedet (`config/beforeSave.ts`, `EntityAgent.GetSaveRules`):
+
+- Henter `GET /api/v1/TriggerScript`, og så hver trigger med `/TriggerScript/{PrimaryKey}`. Listen viser
+  hendelse og «på» som visningstekst, så triggerne velges på hver triggers egne `ScreenType` og `Enabled`.
+- Hendelsen per entitet står i `beforeSaveEvent` i configen: `SalesBeforeSaveContact`, `-Person`,
+  `-Project` og `-Ticket`.
+- Felt som en aktiv trigger leser med `getInputValue("ContactEntity.OrgNr")` osv., låses i panelet
+  («Låst av regel», tooltip med triggernavn) og må endres på kortet.
+- Triggere som ikke leser noe felt ved navn, eller bare en id: panelet spør «Lagre uten disse reglene?»
+  før lagring.
+- Kan triggerne ikke leses (for eksempel uten admin-rettigheter), vises en advarsel, og ingenting låses.
+- «Etter lagring»-triggere er ikke dekket. I Cust30460 lager «Når salg settes til solgt – opprett
+  prosjekt» et prosjekt, og den kjører ikke når salgspanelet setter salget til solgt.
+
 ## Én web panel-URL for alle kort
 
 `src/services/superOfficeContext.ts` leser SuperOffice-vinduets adresse og finner kortet ut fra
@@ -112,8 +132,9 @@ En MDO-liste som ikke kan leses, gir bare tom liste i sitt eget felt (`EntityAge
 
 - Deployet til Cust30460 med lagring på, og web panel er lagt inn for Firma, Person, Prosjekt, Salg og Sak.
 - Prosjekt er bekreftet: Navn, Prosjektnummer, Ansvarlig, Type og Status vises og lagres.
-- Typesjekk, 28 tester og bygg er grønne.
+- Typesjekk, 32 tester og bygg er grønne.
 - Katalogen med standardfelt og Kontaktperson på sak er testet i demo, ikke mot tenant ennå.
+- Bekreftet i Cust30460: Org.nr på firma låses av orgnr-triggeren. Sak (kategori-triggeren) er ikke sjekket.
 
 ## Ikke verifisert mot tenant – sjekkes først
 

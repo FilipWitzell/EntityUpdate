@@ -9,6 +9,7 @@ export const TICKET: EntityConfig = {
   name: "ticket",
   noun: { indefinite: "sak", definite: "saken", plural: "sakene" },
   restEntity: "Ticket",
+  beforeSaveEvent: "SalesBeforeSaveTicket",
   updatedAtProperty: "LastChanged",
   cardProtocol: (id) => `ticket.main?ticket_id=${id}`,
   titleOf: (ticket) => String(ticket.Title ?? ""),

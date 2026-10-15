@@ -8,6 +8,7 @@ export const PERSON: EntityConfig = {
   name: "person",
   noun: { indefinite: "person", definite: "personen", plural: "personene" },
   restEntity: "Person",
+  beforeSaveEvent: "SalesBeforeSavePerson",
   cardProtocol: (id) => `person.main?person_id=${id}`,
   titleOf: (person) => [person.Firstname, person.MiddleName, person.Lastname].filter(Boolean).join(" "),
   subtitleOf: (person) => ["Person", (person.Contact as { Name?: string } | null | undefined)?.Name].filter(Boolean).join(" · "),

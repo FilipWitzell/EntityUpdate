@@ -8,6 +8,7 @@ export const CONTACT: EntityConfig = {
   name: "contact",
   noun: { indefinite: "firma", definite: "firmaet", plural: "firmaene" },
   restEntity: "Contact",
+  beforeSaveEvent: "SalesBeforeSaveContact",
   cardProtocol: (id) => `contact.main?contact_id=${id}`,
   titleOf: (contact) => [contact.Name, contact.Department].filter(Boolean).join(", "),
   subtitleOf: (contact) => ["Firma", contact.OrgNr].filter(Boolean).join(" · "),

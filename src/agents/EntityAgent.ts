@@ -12,6 +12,7 @@ import {
 } from "@/agents/superOfficeLists";
 import { tidyLabel, tidyListName } from "@/config/superOfficeValues";
 import { EntityChangedError } from "@/agents/EntityChangedError";
+import { toSaveRule, type SaveRule } from "@/config/beforeSave";
 import { optionListKey, readNames, readValues, writeValues } from "@/config/entityValues";
 import type { SuperOfficeObject } from "@/types/SuperOfficeObject";
 import type { FieldLayouts, LayoutLevel, ListItem, SavedLayout } from "@/types/Fields";
@@ -247,6 +248,46 @@ export class EntityAgent implements EntityDataSource {
     });
   }
 
+  private saveRules: Promise<SaveRule[]> | null = null;
+
+  /**
+   * The active before-save triggers on the entity (see EntityConfig.beforeSaveEvent) and the fields they
+   * read - read once, they do not change while the panel is open.
+   */
+  GetSaveRules(): Promise<SaveRule[]> {
+    this.saveRules ??= this.fetchSaveRules().catch((e) => {
+      // Look again next time, the failure may pass.
+      this.saveRules = null;
+      throw e;
+    });
+    return this.saveRules;
+  }
+
+  private async fetchSaveRules(): Promise<SaveRule[]> {
+    const event = this.config.beforeSaveEvent;
+    if (!event) return [];
+    const list = await this.getJson<TriggerRow[] | { value?: TriggerRow[] }>("/api/v1/TriggerScript");
+    const rows = Array.isArray(list) ? list : (list.value ?? []);
+    // The list leaves out the code and shows the event and "enabled" as display text, so each trigger
+    // is read on its own and picked by its own ScreenType and Enabled.
+    const [definitions, triggers] = await Promise.all([
+      this.GetCustomFieldDefinitions(),
+      Promise.all(rows.map((row) => this.getJson<TriggerRow>(`/api/v1/TriggerScript/${column(row, "PrimaryKey")}`)))
+    ]);
+    const rules = triggers
+      .filter((trigger) => column(trigger, "ScreenType") === event && column(trigger, "Enabled") === true)
+      .map((trigger) =>
+        toSaveRule(String(column(trigger, "Name") ?? ""), String(column(trigger, "Source") ?? ""), [...this.config.fields, ...definitions])
+      );
+    console.info(`Before-save rules (${event}):`, rules);
+    return rules;
+  }
+
+  private async getJson<T>(endpoint: string): Promise<T> {
+    const response = await this.agent.Request({ method: "GET", endpoint, headers: restApiDefaultHeaders() });
+    return (await response.json()) as T;
+  }
+
   private async fetchEntity(id: number): Promise<RestEntity> {
     return (await this.agent.GetEntityById({ entity: this.config.restEntity, id })) as RestEntity;
   }
@@ -284,4 +325,12 @@ export class EntityAgent implements EntityDataSource {
       .then((response) => response.json());
     return this.principal;
   }
+}
+
+type TriggerRow = Record<string, unknown>;
+
+/** A column of a REST row, whatever its casing (screenType, ScreenType...). */
+function column(row: Record<string, unknown>, name: string): unknown {
+  const key = Object.keys(row).find((candidate) => candidate.toLowerCase() === name.toLowerCase());
+  return key === undefined ? undefined : row[key];
 }

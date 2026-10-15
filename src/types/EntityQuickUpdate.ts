@@ -1,3 +1,4 @@
+import type { SaveRule } from "@/config/beforeSave";
 import type { FieldDefinition, FieldLayouts, FieldValue, LayoutLevel, ListItem, SavedLayout } from "@/types/Fields";
 
 /** The entities the generic panel updates. Sales have their own panel, with sale-specific logic. */
@@ -62,6 +63,12 @@ export interface EntityConfig {
    * turns them on in the field picker, so the list can hold every field worth editing.
    */
   fields: EntityFieldDefinition[];
+  /**
+   * The trigger event the card fires before saving, e.g. "SalesBeforeSaveContact". REST saves skip the
+   * card's triggers, so the panel reads the active triggers on this event and leaves the fields they
+   * check to the card (see config/beforeSave.ts).
+   */
+  beforeSaveEvent?: string;
   /** The company whose persons the person fields offer, e.g. the company of the ticket's contact person. */
   contactIdOf?: (entity: RestEntity) => number;
   /** Where the user-defined fields are listed: an archive provider and its column prefix. */
@@ -131,6 +138,8 @@ export interface EntityDataSource {
   GetPersons(contactId: number): Promise<ListItem[]>;
   /** Persons on any company, by name, for picking a person elsewhere. */
   SearchPersons(query: string): Promise<ListItem[]>;
+  /** The active before-save triggers on the entity, and which fields they read. */
+  GetSaveRules(): Promise<SaveRule[]>;
   /**
    * definitions: the fields being changed, so each value is written where and how SuperOffice expects.
    * expectedUpdatedAt: the entity's updatedAt when it was loaded. If someone saved it since, an

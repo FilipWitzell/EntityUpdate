@@ -1,4 +1,5 @@
 import { decodeLayout, encodeLayout } from "@/config/fieldLayout";
+import type { SaveRule } from "@/config/beforeSave";
 import type { FieldLayouts, LayoutLevel, ListItem, SavedLayout } from "@/types/Fields";
 import type { EntityDataSource, EntityFieldDefinition, EntitySnapshot, EntityValues, WorklistItem } from "@/types/EntityQuickUpdate";
 
@@ -13,6 +14,8 @@ export interface EntityDemoData {
   customFields: EntityFieldDefinition[];
   /** The persons on each company, by company id, for the person fields. */
   persons?: Record<number, ListItem[]>;
+  /** Before-save triggers, as the panel would read them from SuperOffice. */
+  saveRules?: SaveRule[];
 }
 
 /**
@@ -93,6 +96,10 @@ export class DemoEntityAgent implements EntityDataSource {
     return Object.values(this.data.persons ?? {})
       .flat()
       .filter((person) => person.name.toLowerCase().includes(lowerQuery));
+  }
+
+  async GetSaveRules(): Promise<SaveRule[]> {
+    return this.data.saveRules ?? [];
   }
 
   async Update(id: number, changes: EntityValues, definitions: EntityFieldDefinition[]): Promise<void> {

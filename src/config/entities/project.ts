@@ -8,6 +8,7 @@ export const PROJECT: EntityConfig = {
   name: "project",
   noun: { indefinite: "prosjekt", definite: "prosjektet", plural: "prosjektene" },
   restEntity: "Project",
+  beforeSaveEvent: "SalesBeforeSaveProject",
   cardProtocol: (id) => `project.main?project_id=${id}`,
   titleOf: (project) => String(project.Name ?? ""),
   subtitleOf: (project) => ["Prosjekt", project.ProjectNumber].filter(Boolean).join(" · "),
