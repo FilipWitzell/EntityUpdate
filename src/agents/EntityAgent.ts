@@ -7,6 +7,7 @@ import {
   fetchMDOList,
   fetchPersonsOnContact,
   fetchUdefColumns,
+  searchContacts,
   searchPersons,
   type ExtraFieldInfo
 } from "@/agents/superOfficeLists";
@@ -59,6 +60,10 @@ export class EntityAgent implements EntityDataSource {
 
   SearchPersons(query: string): Promise<ListItem[]> {
     return searchPersons(this.agent, query);
+  }
+
+  SearchContacts(query: string): Promise<ListItem[]> {
+    return searchContacts(this.agent, query);
   }
 
   /** Every list the fields pick from: MDO lists, and rows of extra tables. Read once per panel. */

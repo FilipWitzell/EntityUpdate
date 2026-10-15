@@ -183,3 +183,24 @@ test("a new contact person and deadline are written; an emptied person is null",
   assert.equal(entity.Person, null);
   assert.equal(entity.Deadline, null);
 });
+
+test("the company picker on a ticket is read from the contact person, and never written", () => {
+  const fields = [
+    {
+      key: "contactId",
+      property: "Person",
+      idField: "ContactId",
+      nameField: "ContactName",
+      label: "Firma",
+      kind: "contact",
+      group: "Nøkkelinfo",
+      personsFor: "personId"
+    },
+    { key: "personId", property: "Person", idField: "PersonId", nameField: "FullName", label: "Kontaktperson", kind: "person", group: "Nøkkelinfo" }
+  ];
+  const entity = { Person: { PersonId: 1001, FullName: "Anne Berg", ContactId: 500, ContactName: "Agimba" } };
+  assert.deepEqual(readValues(entity, fields), { contactId: 500, personId: 1001 });
+  assert.deepEqual(readNames(entity, fields), { contactId: { id: 500, name: "Agimba" }, personId: { id: 1001, name: "Anne Berg" } });
+  writeValues(entity, { contactId: 600, personId: 1012 }, fields);
+  assert.deepEqual(entity.Person, { PersonId: 1012 });
+});

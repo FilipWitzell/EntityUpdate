@@ -43,7 +43,7 @@ export const PERSON: EntityConfig = {
       key: "businessId",
       property: "Business",
       mdoList: "business",
-      label: "Forretning",
+      label: "Bransje",
       kind: "select",
       group: "Klassifisering",
       hiddenByDefault: true

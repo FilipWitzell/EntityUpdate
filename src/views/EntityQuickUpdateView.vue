@@ -89,9 +89,9 @@
                 :kind="row.definition.kind"
                 :options="optionsFor(row)"
                 :disabled="rulesFor(row).length > 0"
-                :search="row.definition.kind === 'person' ? searchPersons : undefined"
+                :search="searchFor(row)"
                 @update:model-value="(value: FieldValue | undefined) => onEdit(row, value ?? null)"
-                @found="addPersons"
+                @found="(items: ListItem[]) => addFound(row, items)"
               />
             </div>
           </template>
@@ -217,6 +217,8 @@
   const options: Ref<Record<string, ListItem[]> | null> = ref(null);
   /** The persons the person fields offer: those on the record's company, and those found by searching. */
   const personOptions: Ref<ListItem[]> = ref([]);
+  /** The companies the company picker offers: the current one, and those found by searching. */
+  const contactOptions: Ref<ListItem[]> = ref([]);
   const rows: Ref<FieldRow[]> = ref([]);
   const collapsedGroups: Ref<Set<string>> = ref(new Set());
 
@@ -309,28 +311,58 @@
     options.value = lists;
     rows.value = buildRows(loaded);
     personOptions.value = [];
-    loadPersons(loaded);
+    contactOptions.value = [];
+    loadPersons(loaded.contactId ?? 0);
   }
 
-  /** The persons on the record's company. Read on its own, so a failure only leaves the current person. */
-  async function loadPersons(loaded: EntitySnapshot) {
-    if (!loaded.contactId || !allDefinitions.value.some((definition) => definition.kind === "person")) return;
+  /** The persons on a company. Read on its own, so a failure only leaves the current person. */
+  async function loadPersons(contactId: number) {
+    if (!contactId || !allDefinitions.value.some((definition) => definition.kind === "person")) return;
+    const recordId = snapshot.value?.id;
     try {
-      const persons = await dataSource.GetPersons(loaded.contactId);
-      // Ignore an answer that comes back after another record was opened.
-      if (snapshot.value?.id === loaded.id) addPersons(persons);
+      const persons = await dataSource.GetPersons(contactId);
+      // Ignore an answer that comes back after another record or company was picked.
+      if (snapshot.value?.id === recordId && personsCompanyId() === contactId) personOptions.value = merged(personOptions.value, persons);
     } catch (e) {
       console.error("Could not fetch the persons on the company:", e);
     }
   }
 
-  function searchPersons(query: string): Promise<ListItem[]> {
-    return dataSource.SearchPersons(query);
+  /** The company picker (a field with personsFor), when the panel shows one. */
+  function companyRow(): FieldRow | undefined {
+    return rows.value.find((row) => row.definition.personsFor);
   }
 
-  function addPersons(items: ListItem[]) {
-    const known = new Set(personOptions.value.map((item) => item.id));
-    personOptions.value = [...personOptions.value, ...items.filter((item) => !known.has(item.id))];
+  /** The company whose persons are offered: the one picked in the company picker, else the record's. */
+  function personsCompanyId(): number {
+    const company = companyRow();
+    return Number(company ? (company.next ?? 0) : (snapshot.value?.contactId ?? 0));
+  }
+
+  /**
+   * The search behind the searched pickers: companies, and persons on any company - unless a company
+   * picker is shown, where the company is picked first and its persons listed.
+   */
+  function searchFor(row: FieldRow): ((query: string) => Promise<ListItem[]>) | undefined {
+    if (row.definition.kind === "contact") return (query) => dataSource.SearchContacts(query);
+    if (row.definition.kind === "person" && !companyRow()) return (query) => dataSource.SearchPersons(query);
+    return undefined;
+  }
+
+  function addFound(row: FieldRow, items: ListItem[]) {
+    if (row.definition.kind === "contact") contactOptions.value = merged(contactOptions.value, items);
+    else personOptions.value = merged(personOptions.value, items);
+  }
+
+  function merged(list: ListItem[], items: ListItem[]): ListItem[] {
+    const known = new Set(list.map((item) => item.id));
+    return [...list, ...items.filter((item) => !known.has(item.id))];
+  }
+
+  /** A list with the record's current value first, also when it is not (or no longer) among the others. */
+  function withCurrent(row: FieldRow, list: ListItem[]): ListItem[] {
+    const current = snapshot.value?.names?.[row.definition.key];
+    return current && !list.some((item) => item.id === current.id) ? [current, ...list] : list;
   }
 
   async function reload() {
@@ -447,10 +479,11 @@
 
   function optionsFor(row: FieldRow): ListItem[] {
     if (row.definition.choices) return row.definition.choices;
+    if (row.definition.kind === "contact") return withCurrent(row, contactOptions.value);
     if (row.definition.kind === "person") {
-      // The current person first, also when they are not (or no longer) on the company.
-      const current = snapshot.value?.names?.[row.definition.key];
-      return current && !personOptions.value.some((item) => item.id === current.id) ? [current, ...personOptions.value] : personOptions.value;
+      // Another company picked: only its persons, not the current person from the old one.
+      const company = companyRow();
+      return company?.shouldUpdate ? personOptions.value : withCurrent(row, personOptions.value);
     }
     const key = optionListKey(row.definition);
     return key ? (options.value?.[key] ?? []) : [];
@@ -460,6 +493,21 @@
   function onEdit(row: FieldRow, value: FieldValue) {
     row.next = value;
     row.shouldUpdate = value !== row.current;
+    if (row.definition.personsFor) onCompanyPicked(row);
+  }
+
+  /**
+   * Another company has other persons: the person is emptied until one of them is picked, and comes
+   * back when the company is set back.
+   */
+  function onCompanyPicked(company: FieldRow) {
+    const person = rows.value.find((row) => row.definition.key === company.definition.personsFor);
+    if (person) {
+      person.next = company.shouldUpdate ? null : person.current;
+      person.shouldUpdate = person.next !== person.current;
+    }
+    personOptions.value = [];
+    loadPersons(Number(company.next ?? 0));
   }
 
   /** Switching a row off means "keep the current value", so the new value is reset. */
@@ -470,6 +518,7 @@
     }
     row.next = row.current;
     row.shouldUpdate = false;
+    if (row.definition.personsFor) onCompanyPicked(row);
   }
 
   /** Opens the group of the first field that is missing a value and scrolls it into view. */
@@ -553,6 +602,13 @@
       return false;
     }
     saveBlocked.value = false;
+    // The company follows the person: a new company without a person would only empty the person.
+    const company = companyRow();
+    const person = company && rows.value.find((row) => row.definition.key === company.definition.personsFor);
+    if (company?.shouldUpdate && person && person.next === null) {
+      ElMessage.warning(`Velg ${person.definition.label.toLowerCase()} i det nye firmaet. Firmaet følger personen.`);
+      return false;
+    }
     if (!(await confirmUnknownRules())) return false;
     posting.value = true;
 
@@ -679,6 +735,7 @@
         });
       case "select":
       case "person":
+      case "contact":
         return optionsFor(row).find((item) => item.id === value)?.name ?? "-";
       case "longtext":
         // One line in the table and the summary - the whole text is in the field itself.

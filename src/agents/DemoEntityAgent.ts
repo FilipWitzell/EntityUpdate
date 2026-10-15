@@ -14,6 +14,8 @@ export interface EntityDemoData {
   customFields: EntityFieldDefinition[];
   /** The persons on each company, by company id, for the person fields. */
   persons?: Record<number, ListItem[]>;
+  /** The companies the persons belong to, for the company picker. */
+  contacts?: ListItem[];
   /** Before-save triggers, as the panel would read them from SuperOffice. */
   saveRules?: SaveRule[];
 }
@@ -98,6 +100,12 @@ export class DemoEntityAgent implements EntityDataSource {
       .filter((person) => person.name.toLowerCase().includes(lowerQuery));
   }
 
+  async SearchContacts(query: string): Promise<ListItem[]> {
+    await pause();
+    const lowerQuery = query.toLowerCase();
+    return (this.data.contacts ?? []).filter((contact) => contact.name.toLowerCase().includes(lowerQuery));
+  }
+
   async GetSaveRules(): Promise<SaveRule[]> {
     return this.data.saveRules ?? [];
   }
@@ -114,6 +122,13 @@ export class DemoEntityAgent implements EntityDataSource {
       record.names = { ...record.names };
       if (person) record.names[definition.key] = person;
       else delete record.names[definition.key];
+      // The company follows the person, as on a ticket.
+      const company = this.data.contacts?.find((contact) => this.data.persons?.[Number(contact.id)]?.some((item) => item.id === person?.id));
+      if (company && "contactId" in record.values) {
+        record.contactId = Number(company.id);
+        record.values.contactId = company.id;
+        record.names.contactId = company;
+      }
     }
     record.updatedAt = new Date().toISOString();
   }

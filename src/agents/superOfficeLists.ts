@@ -146,3 +146,18 @@ export async function searchPersons(agent: SuperOfficeAgent, query: string): Pro
   });
   return persons.map((person) => ({ id: Number(person.personId), name: String(person.fullName ?? "") }));
 }
+
+/** Companies whose name contains the query, shown as "name, department". */
+export async function searchContacts(agent: SuperOfficeAgent, query: string): Promise<ListItem[]> {
+  const contacts = await agent.QueryEntities({
+    entity: "Contact",
+    select: "contactId,name,department",
+    filter: `name contains '${query.replace(/'/g, "''")}'`,
+    orderBy: "name asc",
+    top: 50
+  });
+  return contacts.map((contact) => ({
+    id: Number(contact.contactId),
+    name: [contact.name, contact.department].filter(Boolean).join(", ")
+  }));
+}

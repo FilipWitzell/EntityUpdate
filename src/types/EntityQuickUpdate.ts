@@ -29,6 +29,11 @@ export interface EntityFieldDefinition extends FieldDefinition {
    * property object, e.g. "FullName", so the current value can be shown before anything is searched.
    */
   nameField?: string;
+  /**
+   * A helper that is not saved: the company whose persons the field with this key offers. On a ticket the
+   * company follows the contact person, so picking another company empties the person until one is picked.
+   */
+  personsFor?: string;
   /** An extra field (x_...), kept in CustomFields under this name, e.g. "x_product". */
   customField?: string;
   /**
@@ -138,6 +143,8 @@ export interface EntityDataSource {
   GetPersons(contactId: number): Promise<ListItem[]>;
   /** Persons on any company, by name, for picking a person elsewhere. */
   SearchPersons(query: string): Promise<ListItem[]>;
+  /** Companies by name, for picking the company whose persons are offered. */
+  SearchContacts(query: string): Promise<ListItem[]>;
   /** The active before-save triggers on the entity, and which fields they read. */
   GetSaveRules(): Promise<SaveRule[]>;
   /**

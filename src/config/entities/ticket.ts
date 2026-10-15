@@ -28,6 +28,16 @@ export const TICKET: EntityConfig = {
       group: "Nøkkelinfo",
       important: true
     },
+    {
+      key: "contactId",
+      property: "Person",
+      idField: "ContactId",
+      nameField: "ContactName",
+      label: "Firma",
+      kind: "contact",
+      group: "Nøkkelinfo",
+      personsFor: "personId"
+    },
     { key: "personId", property: "Person", idField: "PersonId", nameField: "FullName", label: "Kontaktperson", kind: "person", group: "Nøkkelinfo" },
     {
       key: "categoryId",

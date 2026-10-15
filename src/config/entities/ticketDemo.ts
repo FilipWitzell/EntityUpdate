@@ -4,7 +4,13 @@ import type { ListItem } from "@/types/Fields";
 
 /** Tickets for the demo (#/demo/ticket). The demo user is associate 1 (Per Hansen). */
 
-/** The demo companies' persons, by company id. */
+/** The demo companies, and their persons by company id. */
+const CONTACTS: ListItem[] = [
+  { id: 101, name: "Drammen Elektro AS" },
+  { id: 102, name: "Fjord Regnskap AS" },
+  { id: 103, name: "Nordlys IT AS" }
+];
+
 const PERSONS: Record<number, ListItem[]> = {
   101: [
     { id: 1001, name: "Anne Berg" },
@@ -28,10 +34,11 @@ function ticket(id: number, ownerId: number, title: string, contactId: number, p
     updatedAt: "2026-10-01T08:00:00",
     updatedBy: "Per Hansen",
     contactId,
-    names: (person ? { personId: person } : {}) as Record<string, ListItem>,
+    names: { ...(person ? { personId: person } : {}), contactId: CONTACTS.find((item) => item.id === contactId)! } as Record<string, ListItem>,
     values: {
       title,
       ownedBy: ownerId,
+      contactId,
       personId,
       categoryId: 1,
       priorityId: 2,
@@ -73,6 +80,7 @@ export const TICKET_DEMO: EntityDemoData = {
     ]
   },
   persons: PERSONS,
+  contacts: CONTACTS,
   records: [
     ticket(48213, 1, "Bilag synker ikke fra Visma Net", 101, 1001, { categoryId: 2, deadline: "2026-10-20T12:00:00" }),
     ticket(48220, 1, "Kan ikke logge inn i SuperOffice", 102, 1011, { x_product: 1, priorityId: 3 }),

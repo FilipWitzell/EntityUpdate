@@ -57,7 +57,7 @@ export function readNames(entity: RestEntity, definitions: EntityFieldDefinition
 /** Writes the changed values onto the entity, in the form SuperOffice expects. Returns the same entity. */
 export function writeValues(entity: RestEntity, changes: EntityValues, definitions: EntityFieldDefinition[]): RestEntity {
   for (const definition of definitions) {
-    if (!(definition.key in changes)) continue;
+    if (!(definition.key in changes) || definition.personsFor) continue;
     const value = changes[definition.key] ?? null;
 
     if (definition.udef) {

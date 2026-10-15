@@ -98,7 +98,7 @@ En MDO-liste som ikke kan leses, gir bare tom liste i sitt eget felt (`EntityAge
 
 - **Firma (contact):**
   - Felt: Navn, Avdeling (skjult), Kategori (`category`), Vår kontakt (`associate`),
-    Forretning (`business`), Org.nr.
+    Bransje (`business`), Org.nr.
   - Skjult i katalogen: Kode (`Number1`), Nummer (`Number2`), Land (`country`, `CountryId`),
     Supportkontakt (`SupportAssociate`), Ingen utsendelser (`NoMailing`), Stopp (`Xstop`), Notat (`Description`).
   - Udef-felt fra arkivet `FindContact` / `contactUdef/`.
@@ -108,12 +108,16 @@ En MDO-liste som ikke kan leses, gir bare tom liste i sitt eget felt (`EntityAge
     (`ejcategory`, id-feltet heter `TicketCategoryId`), pluss alle ekstrafelt.
   - Skjult i katalogen: Prioritet (`ticketpriority`, `TicketPriorityId`), Status (`ticketstatus`,
     `TicketStatusId`), Sakstype (`tickettype`, `TicketTypeId`), Frist (`Deadline`, dato og klokkeslett).
-  - Kontaktperson (feltype `person`): personene på firmaet til nåværende kontaktperson vises som
-    liste (`contactIdOf`), og man kan søke etter personer i andre firma (`fullName contains`).
+  - Firma (`contactId`, feltype `contact` med `personsFor: "personId"`): et hjelpefelt som ikke lagres.
+    Det leses fra `Person.ContactId`/`ContactName` og søkes med `name contains`. Nytt firma tømmer
+    Kontaktperson og viser personene der. Panelet lagrer ikke nytt firma uten person, siden firmaet
+    følger personen (TicketEntity har ingen egen firmarelasjon).
+  - Kontaktperson (feltype `person`): en liste med personene på valgt firma. Uten Firma-felt kan man
+    søke etter personer i alle firma (`fullName contains`).
   - «Sist endret» er `LastChanged`, så konfliktsjekken er på.
   - Utvalg: tabell 262.
 - **Person:** Fornavn, Etternavn, Tittel, Stilling (`perspos`), Vår kontakt (`associate`), Sluttet
-  (skjult). Skjult i katalogen: Mellomnavn, Kategori, Forretning, Land, Supportkontakt, Nummer
+  (skjult). Skjult i katalogen: Mellomnavn, Kategori, Bransje, Land, Supportkontakt, Nummer
   (`PersonNumber`), Notat. Udef fra arkivet `Person` / `personUdef/`. Utvalg: tabell 6 (ikke bekreftet).
 - **Prosjekt:** Navn, Prosjektnummer, Ansvarlig (`associate`), Type (`projecttype`), Status
   (`projectstatus`), Beskrivelse (skjult). Skjult i katalogen: Sluttdato (`EndDate`), Ferdig
@@ -150,8 +154,15 @@ En MDO-liste som ikke kan leses, gir bare tom liste i sitt eget felt (`EntityAge
    (`Person`-arkivet, `fullName contains`) virker.
 6. At panelet lastes på nytt og finner riktig kort når man bytter kort i SuperOffice. Hvis ikke,
    må panelet sjekke adressen på nytt når det får fokus.
-7. Kortvakten (`services/superOfficeCard.ts`) mot ekte SuperOffice: at «Lagre»/«Avbryt» i kortets
-   redigeringsmodus og meldingseditoren på sak blir funnet, og at `refresh` laster saken på nytt.
+7. **Åpen feil (15.10):** kortet til venstre lastes ikke på nytt etter lagring (sett på firma, Bransje).
+   Brukeren mener det virket 14.10, før kortvakten (`services/superOfficeCard.ts`, commit fbdf0d7) kom.
+   Mest sannsynlig ser kortvakten feilaktig kortet som opptatt (et felt med tekst e.l.), og
+   `showSavedOnCard` hopper over `refresh`. Neste steg: få linjen «The SuperOffice card looks busy
+   because of: …» fra panelets konsoll etter en lagring, og se om den blå meldingen «Kortet er ikke
+   lastet på nytt …» kom. Først hvis kortvakten ikke er årsaken: test `postMessage({ command: "refresh" }, "*")`
+   i SuperOffice-fanens konsoll.
+8. Firma-feltet på sak er deployet, men ikke testet i SuperOffice: sjekk at kortet viser nytt firma
+   etter at ny person er lagret.
 
 ## Neste steg
 

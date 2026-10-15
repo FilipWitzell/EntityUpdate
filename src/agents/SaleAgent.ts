@@ -4,7 +4,7 @@ import type { SuperOfficeObject } from "@/types/SuperOfficeObject";
 import { decodeUdefValue, encodeUdefValue, tidyListName } from "@/config/superOfficeValues";
 import { LayoutPreferences } from "@/agents/LayoutPreferences";
 import { dateOrNull } from "@/config/entityValues";
-import { fetchMDOList, fetchPersonsOnContact, fetchUdefColumns, type MDOListItem } from "@/agents/superOfficeLists";
+import { fetchMDOList, fetchPersonsOnContact, fetchUdefColumns, searchContacts, type MDOListItem } from "@/agents/superOfficeLists";
 import { SaleChangedError } from "@/agents/SaleChangedError";
 import type {
   FieldValue,
@@ -222,18 +222,8 @@ export class SaleAgent implements SaleDataSource {
     return projects.map((project) => ({ id: Number(project.projectId), name: String(project.name) }));
   }
 
-  async SearchContacts(query: string): Promise<ListItem[]> {
-    const contacts = await this.agent.QueryEntities({
-      entity: "Contact",
-      select: "contactId,name,department",
-      filter: `name contains '${query.replace(/'/g, "''")}'`,
-      orderBy: "name asc",
-      top: 50
-    });
-    return contacts.map((contact) => ({
-      id: Number(contact.contactId),
-      name: [contact.name, contact.department].filter(Boolean).join(", ")
-    }));
+  SearchContacts(query: string): Promise<ListItem[]> {
+    return searchContacts(this.agent, query);
   }
 
   GetPersons(contactId: number): Promise<ListItem[]> {

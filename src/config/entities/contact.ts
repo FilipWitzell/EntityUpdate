@@ -26,7 +26,7 @@ export const CONTACT: EntityConfig = {
       group: "Nøkkelinfo",
       important: true
     },
-    { key: "businessId", property: "Business", mdoList: "business", label: "Forretning", kind: "select", group: "Klassifisering" },
+    { key: "businessId", property: "Business", mdoList: "business", label: "Bransje", kind: "select", group: "Klassifisering" },
     { key: "orgNr", property: "OrgNr", label: "Org.nr", kind: "text", group: "Klassifisering" },
     // In the field picker, off until someone turns them on.
     { key: "number1", property: "Number1", label: "Kode", kind: "text", group: "Klassifisering", hiddenByDefault: true },
