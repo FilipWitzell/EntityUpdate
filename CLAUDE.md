@@ -48,7 +48,9 @@ Firma, Person, Prosjekt, Sak og Salg. Startet som kopi av SaleUpdate
   kortet på nytt eller flytter det til en annen post. Lagring i panelet går likevel.
 - Etter lagring åpnes posten på kortet med SoProtocol (`jumpTo(cardProtocol(id))`). Det laster også et
   kort som allerede viser posten (bekreftet på firma, person og prosjekt 16.10). Sak lastes bare på nytt
-  når adressen er ny, så sakens SoProtocol har `&reload=<tid>` (bekreftet 16.10). Cross-messaging-kommandoen `refresh` gjør
+  når adressen er ny, så sakens SoProtocol har `&reload=<tid>` (bekreftet 16.10).
+  Sakskortet har i tillegg en egen oppdateringsknapp (rund pil i toppen). For sak klikker panelet den
+  (`clickCardRefresh`, `cardHasRefreshButton` i configen), og bruker SoProtocol bare hvis knappen ikke finnes. Cross-messaging-kommandoen `refresh` gjør
   ingenting i dagens SuperOffice, og brukes ikke lenger.
 
 ## Triggere i SuperOffice
@@ -156,7 +158,8 @@ En MDO-liste som ikke kan leses, gir bare tom liste i sitt eget felt (`EntityAge
    (`Person`-arkivet, `fullName contains`) virker.
 6. At panelet lastes på nytt og finner riktig kort når man bytter kort i SuperOffice. Hvis ikke,
    må panelet sjekke adressen på nytt når det får fokus.
-7. (Løst og bekreftet 16.10: kortet lastes på nytt etter lagring med SoProtocol, også sak med `&reload=<tid>`.)
+7. (Løst og bekreftet 16.10: kortet lastes på nytt etter lagring. Sak med sin egen oppdateringsknapp,
+   de andre med SoProtocol. Kortvakten er også bekreftet: tekst i meldingseditoren på sak stopper omlastingen.)
 8. Firma-feltet på sak er deployet, men ikke testet i SuperOffice: sjekk at kortet viser nytt firma
    etter at ny person er lagret.
 

@@ -182,7 +182,7 @@
   import { applyLayout, completeLayout, withStandardMinimum } from "@/config/fieldLayout";
   import { optionListKey } from "@/config/entityValues";
   import { jumpTo } from "@/services/so-cross-messaging";
-  import { cardIsBusy, readCardState } from "@/services/superOfficeCard";
+  import { cardIsBusy, clickCardRefresh, readCardState } from "@/services/superOfficeCard";
   import { IN_DEV_MODE, SUPEROFFICE_URL } from "@/superoffice-config/superoffice-config";
   import { DEV_SUPEROFFICE_URL } from "@/superoffice-config/superoffice-url";
   import type { SaveRule } from "@/config/beforeSave";
@@ -651,14 +651,23 @@
   }
 
   /**
-   * Makes the SuperOffice card show the saved values, by opening the record on it through SoProtocol -
-   * that reloads a card already showing it too. The cross-messaging "refresh" command does nothing in
-   * today's SuperOffice. Failures are only logged: the save has already succeeded.
+   * Makes the SuperOffice card show the saved values. A card showing this record is reloaded with its
+   * own refresh button (only the ticket card has one), else by opening the record again through SoProtocol. The cross-messaging "refresh" command does nothing in today's SuperOffice.
+   * Failures are only logged: the save has already succeeded.
    */
   function showSavedOnCard(id: number) {
-    if (id === contextId.value && cardIsBusy()) {
+    if (id !== contextId.value) {
+      openCard(id);
+      return;
+    }
+    if (cardIsBusy()) {
       ElMessage.info("Kortet er ikke lastet på nytt, fordi noe er under arbeid der. Trykk Oppdater i SuperOffice når du er klar.");
       return;
+    }
+    try {
+      if (config.cardHasRefreshButton && clickCardRefresh()) return;
+    } catch (e) {
+      console.warn("Could not click the card's refresh button:", e);
     }
     openCard(id);
   }

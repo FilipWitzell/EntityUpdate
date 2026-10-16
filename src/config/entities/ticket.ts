@@ -11,6 +11,7 @@ export const TICKET: EntityConfig = {
   restEntity: "Ticket",
   beforeSaveEvent: "SalesBeforeSaveTicket",
   updatedAtProperty: "LastChanged",
+  cardHasRefreshButton: true,
   // A ticket card already showing the ticket is reloaded only when the address is new, hence the reload value.
   cardProtocol: (id) => `ticket.main?ticket_id=${id}&reload=${Date.now()}`,
   titleOf: (ticket) => String(ticket.Title ?? ""),

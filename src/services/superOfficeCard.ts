@@ -33,6 +33,36 @@ export function cardIsBusy(state: CardState = readCardState()): boolean {
   return state.editing || state.writing || state.unknown;
 }
 
+/** The whole name of a refresh button (title, aria-label, tooltip or text) - not "Oppdater fra ERP" and the like. */
+const REFRESH_NAME = /^(oppdater|last inn på nytt|refresh|reload)$/i;
+
+/**
+ * Clicks the card's own refresh button (the round arrow in a ticket card's header), which reloads the
+ * card the way the user would. Returns what was clicked, or null when the card has no such button.
+ */
+export function clickCardRefresh(): string | null {
+  const button = superOfficeDocuments()
+    .flatMap((doc) => [...doc.querySelectorAll<HTMLElement>("button, [role=button], a")])
+    .find((element) => isRefreshButton(element) && isShown(element));
+  if (!button) {
+    console.info("The SuperOffice card has no refresh button to click.");
+    return null;
+  }
+  const clicked = describe(button);
+  console.info("Clicking the card's refresh button:", clicked);
+  button.click();
+  return clicked;
+}
+
+function isRefreshButton(element: HTMLElement): boolean {
+  const names = [element.title, element.getAttribute("aria-label"), element.getAttribute("data-tooltip"), element.getAttribute("tooltip")];
+  if (names.some((name) => name && REFRESH_NAME.test(name.trim()))) return true;
+  if (REFRESH_NAME.test(label(element))) return true;
+  // An icon-only button: the icon says what it does, e.g. class "icon-refresh" or <so-icon icon="refresh">.
+  const icon = element.querySelector("[class*=refresh], [icon*=refresh], [name*=refresh], use[href*=refresh], use[*|href*=refresh]");
+  return icon !== null || /\brefresh\b/i.test(typeof element.className === "string" ? element.className : "");
+}
+
 /** The SuperOffice window's document and every frame in it that can be read - except the panel's own. */
 function superOfficeDocuments(): Document[] {
   let top: Document;

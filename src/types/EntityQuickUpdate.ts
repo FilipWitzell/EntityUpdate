@@ -58,6 +58,8 @@ export interface EntityConfig {
    */
   updatedAtProperty?: string;
   updatedByProperty?: string;
+  /** The card has its own refresh button (only the ticket card), which the panel clicks after saving. */
+  cardHasRefreshButton?: boolean;
   /** The SoProtocol that opens the entity's card, for an id. */
   cardProtocol: (id: number) => string;
   /** The panel's heading and the line under it. */
