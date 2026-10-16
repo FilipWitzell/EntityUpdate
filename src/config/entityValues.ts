@@ -18,6 +18,7 @@ export function optionListKey(definition: EntityFieldDefinition): string | null 
 export function readField(entity: RestEntity, definition: EntityFieldDefinition): FieldValue {
   if (definition.udef) return decodeUdefValue(asText(entity.CustomFields?.[definition.udef.progId]));
   if (definition.customField) return readExtraValue(entity.CustomFields?.[definition.customField], definition);
+  if (definition.consentPurpose) return readConsent(entity, definition.consentPurpose);
   if (!definition.property) return null;
 
   const raw = entity[definition.property];
@@ -27,7 +28,7 @@ export function readField(entity: RestEntity, definition: EntityFieldDefinition)
   }
   if (definition.kind === "date") return dateOrNull(raw as string | null | undefined);
   if (definition.kind === "datetime") return dateTimeOrNull(raw as string | null | undefined);
-  if (definition.kind === "checkbox") return raw ? 1 : 0;
+  if (definition.kind === "checkbox") return Boolean(raw) !== Boolean(definition.inverted) ? 1 : 0;
   if (raw === null || raw === undefined) return null;
   return raw as string | number;
 }
@@ -57,7 +58,7 @@ export function readNames(entity: RestEntity, definitions: EntityFieldDefinition
 /** Writes the changed values onto the entity, in the form SuperOffice expects. Returns the same entity. */
 export function writeValues(entity: RestEntity, changes: EntityValues, definitions: EntityFieldDefinition[]): RestEntity {
   for (const definition of definitions) {
-    if (!(definition.key in changes) || definition.personsFor) continue;
+    if (!(definition.key in changes) || definition.personsFor || definition.readOnly) continue;
     const value = changes[definition.key] ?? null;
 
     if (definition.udef) {
@@ -91,7 +92,7 @@ export function writeValues(entity: RestEntity, changes: EntityValues, definitio
     } else if (definition.kind === "datetime") {
       entity[definition.property] = value ? String(value) : null;
     } else if (definition.kind === "checkbox") {
-      entity[definition.property] = Number(value) === 1;
+      entity[definition.property] = (Number(value) === 1) !== Boolean(definition.inverted);
     } else if (definition.kind === "number" || definition.kind === "amount" || definition.kind === "percent") {
       entity[definition.property] = Number(value ?? 0);
     } else {
@@ -99,6 +100,15 @@ export function writeValues(entity: RestEntity, changes: EntityValues, definitio
     }
   }
   return entity;
+}
+
+/** The legal base of the person's consent for a purpose ("EMARKET"...), as its id in the legalbase list; null when there is none. */
+function readConsent(entity: RestEntity, purpose: string): number | null {
+  const consents = (entity.Consents ?? []) as { ConsentPurposeKey?: string; LegalBaseId?: number }[];
+  // The key may be longer than the one asked for: e-marketing is "EMARKETING" in SuperOffice, asked for as "EMARKET".
+  const consent = consents.find((item) => item.ConsentPurposeKey?.toUpperCase().startsWith(purpose.toUpperCase()));
+  // The id, named from the legalbase list: REST gives LegalBaseName in English.
+  return consent?.LegalBaseId && consent.LegalBaseId > 0 ? consent.LegalBaseId : null;
 }
 
 /** Whether a built-in field's property holds an object with the id: a list item, or a related record. */

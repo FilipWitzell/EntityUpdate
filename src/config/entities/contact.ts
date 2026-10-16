@@ -8,16 +8,36 @@ export const CONTACT: EntityConfig = {
   name: "contact",
   noun: { indefinite: "firma", definite: "firmaet", plural: "firmaene" },
   restEntity: "Contact",
+  // SuperOffice's own field labels, in the user's language, come from this archive's columns.
+  labelProvider: "FindContact",
   beforeSaveEvent: "SalesBeforeSaveContact",
   cardProtocol: (id) => `contact.main?contact_id=${id}`,
   titleOf: (contact) => [contact.Name, contact.Department].filter(Boolean).join(", "),
   subtitleOf: (contact) => ["Firma", contact.OrgNr].filter(Boolean).join(" · "),
   fields: [
-    { key: "name", property: "Name", label: "Navn", kind: "text", group: "Nøkkelinfo" },
-    { key: "department", property: "Department", label: "Avdeling", kind: "text", group: "Nøkkelinfo", hiddenByDefault: true },
-    { key: "categoryId", property: "Category", mdoList: "category", label: "Kategori", kind: "select", group: "Nøkkelinfo", important: true },
+    { key: "name", archiveColumn: "name", property: "Name", label: "Navn", kind: "text", group: "Nøkkelinfo" },
+    {
+      key: "department",
+      archiveColumn: "department",
+      property: "Department",
+      label: "Avdeling",
+      kind: "text",
+      group: "Nøkkelinfo",
+      hiddenByDefault: true
+    },
+    {
+      key: "categoryId",
+      archiveColumn: "category",
+      property: "Category",
+      mdoList: "category",
+      label: "Kategori",
+      kind: "select",
+      group: "Nøkkelinfo",
+      important: true
+    },
     {
       key: "associateId",
+      archiveColumn: "associateId",
       property: "Associate",
       idField: "AssociateId",
       mdoList: "associate",
@@ -26,13 +46,22 @@ export const CONTACT: EntityConfig = {
       group: "Nøkkelinfo",
       important: true
     },
-    { key: "businessId", property: "Business", mdoList: "business", label: "Bransje", kind: "select", group: "Klassifisering" },
-    { key: "orgNr", property: "OrgNr", label: "Org.nr", kind: "text", group: "Klassifisering" },
+    {
+      key: "businessId",
+      archiveColumn: "business",
+      property: "Business",
+      mdoList: "business",
+      label: "Bransje",
+      kind: "select",
+      group: "Klassifisering"
+    },
+    { key: "orgNr", archiveColumn: "orgnr", property: "OrgNr", label: "Org.nr", kind: "text", group: "Klassifisering" },
     // In the field picker, off until someone turns them on.
-    { key: "number1", property: "Number1", label: "Kode", kind: "text", group: "Klassifisering", hiddenByDefault: true },
-    { key: "number2", property: "Number2", label: "Nummer", kind: "text", group: "Klassifisering", hiddenByDefault: true },
+    { key: "number1", archiveColumn: "code", property: "Number1", label: "Kode", kind: "text", group: "Klassifisering", hiddenByDefault: true },
+    { key: "number2", archiveColumn: "number", property: "Number2", label: "Nummer", kind: "text", group: "Klassifisering", hiddenByDefault: true },
     {
       key: "countryId",
+      archiveColumn: "country",
       property: "Country",
       idField: "CountryId",
       mdoList: "country",
@@ -43,6 +72,7 @@ export const CONTACT: EntityConfig = {
     },
     {
       key: "supportAssociateId",
+      archiveColumn: "supportAssociate",
       property: "SupportAssociate",
       idField: "AssociateId",
       mdoList: "associate",
@@ -51,8 +81,16 @@ export const CONTACT: EntityConfig = {
       group: "Klassifisering",
       hiddenByDefault: true
     },
-    { key: "noMailing", property: "NoMailing", label: "Ingen utsendelser", kind: "checkbox", group: "Klassifisering", hiddenByDefault: true },
-    { key: "stop", property: "Xstop", label: "Stopp", kind: "checkbox", group: "Klassifisering", hiddenByDefault: true },
+    {
+      key: "noMailing",
+      archiveColumn: "contactNoMail",
+      property: "NoMailing",
+      label: "Ingen utsendelser",
+      kind: "checkbox",
+      group: "Klassifisering",
+      hiddenByDefault: true
+    },
+    { key: "stop", archiveColumn: "stop", property: "Xstop", label: "Stopp", kind: "checkbox", group: "Klassifisering", hiddenByDefault: true },
     { key: "description", property: "Description", label: "Notat", kind: "longtext", group: "Notat", hiddenByDefault: true }
   ],
   udef: { provider: "FindContact", columnPrefix: "contactUdef/" },

@@ -69,6 +69,13 @@
                 <span v-if="rulesFor(row).length > 0" class="field-rule" :title="ruleTitle(row)">
                   <PhLock :size="11" weight="bold" /> Låst av regel
                 </span>
+                <span
+                  v-else-if="row.definition.readOnly"
+                  class="field-rule"
+                  :title="`Vises bare her. Endre det på ${config.noun.definite} i SuperOffice.`"
+                >
+                  <PhLock :size="11" weight="bold" /> Kun visning - endres på kortet
+                </span>
               </span>
               <span class="field-current cell-current" :class="{ strong: row.definition.kind === 'amount' }">
                 <span v-if="isMissing(row)" class="missing-tag" title="Må fylles ut før du kan lagre">
@@ -88,7 +95,8 @@
                 :model-value="row.next"
                 :kind="row.definition.kind"
                 :options="optionsFor(row)"
-                :disabled="rulesFor(row).length > 0"
+                :disabled="rulesFor(row).length > 0 || row.definition.readOnly"
+                :placeholder="row.definition.emptyText"
                 :search="searchFor(row)"
                 @update:model-value="(value: FieldValue | undefined) => onEdit(row, value ?? null)"
                 @found="(items: ListItem[]) => addFound(row, items)"
@@ -238,7 +246,13 @@
   const showChanges: Ref<boolean> = ref(false);
 
   /** Every field the panel can show: the built-in ones and the entity's user-defined fields. */
-  const allDefinitions: ComputedRef<EntityFieldDefinition[]> = computed(() => [...config.fields, ...udefDefinitions.value]);
+  /** SuperOffice's own labels for the built-in fields, by key; the config's labels are the fallback. */
+  const fieldLabels: Ref<Record<string, string>> = ref({});
+
+  const allDefinitions: ComputedRef<EntityFieldDefinition[]> = computed(() => [
+    ...config.fields.map((field) => (fieldLabels.value[field.key] ? { ...field, label: fieldLabels.value[field.key]! } : field)),
+    ...udefDefinitions.value
+  ]);
 
   /**
    * The fields shown: the user's own layout, else the standard, else the built-in one. The standard is a
@@ -422,7 +436,7 @@
 
   /** Field settings: the user-defined fields, both layouts and whether this user may change the standard. */
   async function loadFieldSettings() {
-    const [udefs, savedLayouts, mayEditStandard] = await Promise.all([
+    const [udefs, savedLayouts, mayEditStandard, labels] = await Promise.all([
       dataSource.GetCustomFieldDefinitions().catch((e) => {
         console.error("Could not fetch user-defined and extra fields:", e);
         return [] as EntityFieldDefinition[];
@@ -432,9 +446,14 @@
         ElMessage.warning("Kunne ikke hente feltoppsettet - viser innebygd oppsett.");
         return { standard: null, personal: null } as FieldLayouts;
       }),
-      dataSource.CanEditStandardLayout().catch(() => false)
+      dataSource.CanEditStandardLayout().catch(() => false),
+      dataSource.GetFieldLabels().catch((e) => {
+        console.error("Could not fetch SuperOffice's field labels:", e);
+        return {} as Record<string, string>;
+      })
     ]);
     udefDefinitions.value = udefs;
+    fieldLabels.value = labels;
     layouts.value = savedLayouts;
     canEditStandard.value = mayEditStandard;
   }

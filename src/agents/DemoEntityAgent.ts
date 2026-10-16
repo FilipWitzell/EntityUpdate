@@ -45,6 +45,11 @@ export class DemoEntityAgent implements EntityDataSource {
     return this.data.customFields;
   }
 
+  /** The demo keeps the labels in the configs. */
+  async GetFieldLabels(): Promise<Record<string, string>> {
+    return {};
+  }
+
   async GetCurrentAssociateId(): Promise<number> {
     return this.data.currentAssociateId;
   }

@@ -9,6 +9,8 @@ export const TICKET: EntityConfig = {
   name: "ticket",
   noun: { indefinite: "sak", definite: "saken", plural: "sakene" },
   restEntity: "Ticket",
+  // SuperOffice's own field labels, in the user's language, come from this archive's columns.
+  labelProvider: "FindTicket",
   beforeSaveEvent: "SalesBeforeSaveTicket",
   updatedAtProperty: "LastChanged",
   cardHasRefreshButton: true,
@@ -19,9 +21,10 @@ export const TICKET: EntityConfig = {
   // The contact person's company: its persons are offered first when the contact person is changed.
   contactIdOf: (ticket) => Number((ticket.Person as { ContactId?: number } | null)?.ContactId ?? 0),
   fields: [
-    { key: "title", property: "Title", label: "Tittel", kind: "text", group: "Nøkkelinfo" },
+    { key: "title", archiveColumn: "title", property: "Title", label: "Tittel", kind: "text", group: "Nøkkelinfo" },
     {
       key: "ownedBy",
+      archiveColumn: "ownedBy",
       property: "OwnedBy",
       idField: "AssociateId",
       mdoList: "associate",
@@ -43,6 +46,7 @@ export const TICKET: EntityConfig = {
     { key: "personId", property: "Person", idField: "PersonId", nameField: "FullName", label: "Kontaktperson", kind: "person", group: "Nøkkelinfo" },
     {
       key: "categoryId",
+      archiveColumn: "categoryFullName",
       property: "Category",
       idField: "TicketCategoryId",
       mdoList: "ejcategory",
@@ -52,6 +56,7 @@ export const TICKET: EntityConfig = {
     },
     {
       key: "priorityId",
+      archiveColumn: "priorityName",
       property: "Priority",
       idField: "TicketPriorityId",
       mdoList: "ticketpriority",
@@ -62,6 +67,7 @@ export const TICKET: EntityConfig = {
     },
     {
       key: "statusId",
+      archiveColumn: "ticketStatusName",
       property: "Status",
       idField: "TicketStatusId",
       mdoList: "ticketstatus",
@@ -72,6 +78,7 @@ export const TICKET: EntityConfig = {
     },
     {
       key: "ticketTypeId",
+      archiveColumn: "ticketTypeName",
       property: "TicketType",
       idField: "TicketTypeId",
       mdoList: "tickettype",
@@ -80,7 +87,7 @@ export const TICKET: EntityConfig = {
       group: "Klassifisering",
       hiddenByDefault: true
     },
-    { key: "deadline", property: "Deadline", label: "Frist", kind: "datetime", group: "Oppfølging", hiddenByDefault: true }
+    { key: "deadline", archiveColumn: "deadline", property: "Deadline", label: "Frist", kind: "datetime", group: "Oppfølging", hiddenByDefault: true }
   ],
   // Tickets have extra fields (x_...), not user-defined fields. The panel finds them in SuperOffice, e.g.
   // x_product, a relation to the extra table y_product.

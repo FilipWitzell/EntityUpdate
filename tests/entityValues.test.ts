@@ -204,3 +204,25 @@ test("the company picker on a ticket is read from the contact person, and never 
   writeValues(entity, { contactId: 600, personId: 1012 }, fields);
   assert.deepEqual(entity.Person, { PersonId: 1012 });
 });
+
+test("a person's consents are read by purpose, and never written", () => {
+  const fields = [
+    { key: "consent:EMARKET", consentPurpose: "EMARKET", readOnly: true, label: "E-markedsføring", kind: "text", group: "Personvern" },
+    { key: "consent:STORE", consentPurpose: "STORE", readOnly: true, label: "Salg og kundeservice", kind: "text", group: "Personvern" }
+  ];
+  const entity = { Consents: [{ ConsentPurposeKey: "STORE", LegalBaseId: 6, LegalBaseName: "Legitimate interest" }] };
+  assert.deepEqual(readValues(entity, fields), { "consent:EMARKET": null, "consent:STORE": 6 });
+  const emarketing = { Consents: [{ ConsentPurposeKey: "EMARKETING", LegalBaseId: 1 }] };
+  assert.equal(readValues(emarketing, fields)["consent:EMARKET"], 1);
+  writeValues(entity, { "consent:STORE": 1 }, fields);
+  assert.deepEqual(entity.Consents, [{ ConsentPurposeKey: "STORE", LegalBaseId: 6, LegalBaseName: "Legitimate interest" }]);
+});
+
+test("an inverted checkbox is on when its property is false", () => {
+  const fields = [{ key: "emarketing", property: "NoMailing", inverted: true, label: "E-markedsføring", kind: "checkbox", group: "Personvern" }];
+  assert.deepEqual(readValues({ NoMailing: false }, fields), { emarketing: 1 });
+  assert.deepEqual(readValues({ NoMailing: true }, fields), { emarketing: 0 });
+  const entity = { NoMailing: true };
+  writeValues(entity, { emarketing: 1 }, fields);
+  assert.equal(entity.NoMailing, false);
+});

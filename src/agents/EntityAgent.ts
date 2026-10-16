@@ -4,6 +4,7 @@ import {
   fetchExtraFields,
   fetchExtraTableDisplayField,
   fetchExtraTableRows,
+  fetchColumnLabels,
   fetchMDOList,
   fetchPersonsOnContact,
   fetchUdefColumns,
@@ -52,6 +53,18 @@ export class EntityAgent implements EntityDataSource {
       contactId: this.config.contactIdOf?.(entity),
       ...this.savedBy(entity)
     };
+  }
+
+  /** SuperOffice's labels for the fields that name their archive column. */
+  async GetFieldLabels(): Promise<Record<string, string>> {
+    if (!this.config.labelProvider) return {};
+    const columns = await fetchColumnLabels(this.agent, this.config.labelProvider);
+    return Object.fromEntries(
+      this.config.fields.flatMap((field) => {
+        const label = field.archiveColumn ? columns[field.archiveColumn] : undefined;
+        return label ? [[field.key, label]] : [];
+      })
+    );
   }
 
   GetPersons(contactId: number): Promise<ListItem[]> {

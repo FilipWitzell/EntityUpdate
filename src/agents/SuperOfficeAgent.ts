@@ -6,11 +6,16 @@ import {
   SUPEROFFICE_SERVICE_URL
 } from "@/superoffice-config/superoffice-config";
 
+import { languageHeaders } from "@/services/userLanguage";
 import type { SuperOfficeObject } from "@/types/SuperOfficeObject";
 import type { QueryEntitiesOptions } from "@/types/QueryEntitiesOptions";
 
-/** Returns default headers for REST API requests (for when calling REST API from inside SuperOffice) */
+/**
+ * Returns default headers for REST API requests (for when calling REST API from inside SuperOffice),
+ * in the panel's language (Norwegian), so SuperOffice's names match the panel's own texts.
+ */
 export const restApiDefaultHeaders = (): HeadersInit => ({
+  ...languageHeaders(),
   "X-XSRF-TOKEN": XSRF_TOKEN,
   Accept: "application/json",
   "Content-Type": "application/json",

@@ -95,7 +95,14 @@ https://app.superoffice.com/Cust30460/CS/scripts/blogic.fcgi?action=doScript&inc
 ## Entiteter
 
 Standardfeltene kan ikke hentes automatisk fra SuperOffice: ingen kilde gir både REST-feltnavn,
-ledetekst og MDO-liste. Derfor er `fields` i hver config en katalog med alle standardfelt det er
+ledetekst og MDO-liste. Ledetekstene er likevel SuperOffice sine egne: hvert felt har `archiveColumn`, og
+panelet henter kolonnenavnene på brukerens språk fra `Agents/Archive/GetAvailableColumns` for
+`labelProvider` (FindContact, Person, FindProject, FindTicket). `label` i configen brukes bare når
+SuperOffice ikke gir noe navn (Firma, Kontaktperson og Notat har ingen kolonne). Bruk alltid
+SuperOffice sine standardbenevnelser (f.eks. Posisjon, Bransje), aldri egne ord.
+Alle REST-kall ber om norsk (`services/userLanguage.ts`: `SO-Language`/`Accept-Language` = `no`), siden
+panelets egne tekster er norske. Uten det svarer REST på engelsk. SuperOffice oppgir ikke brukerens språk:
+siden har alltid `lang="en"`, og `currentPrincipal` har ikke språk. `no`, `nb` og `nb-NO` gir alle norsk (bekreftet). Derfor er `fields` i hver config en katalog med alle standardfelt det er
 verdt å redigere. Felt med `hiddenByDefault` ligger i feltvelgeren (tannhjulet) til noen slår dem på.
 Feltnavn og id-navn følger REST-entiteten i dokumentasjonen (docs.superoffice.com, «Get <Entitet> Entity»).
 En MDO-liste som ikke kan leses, gir bare tom liste i sitt eget felt (`EntityAgent.GetOptions`).
@@ -120,8 +127,13 @@ En MDO-liste som ikke kan leses, gir bare tom liste i sitt eget felt (`EntityAge
     søke etter personer i alle firma (`fullName contains`).
   - «Sist endret» er `LastChanged`, så konfliktsjekken er på.
   - Utvalg: tabell 262.
-- **Person:** Fornavn, Etternavn, Tittel, Stilling (`perspos`), Vår kontakt (`associate`), Sluttet
-  (skjult). Skjult i katalogen: Mellomnavn, Kategori, Bransje, Land, Supportkontakt, Nummer
+- **Person:** Fornavn, Etternavn, Tittel, Posisjon (`perspos`), Sluttet (skjult). Ikke «Vår kontakt»:
+  den følger firmaet. Personvern vises skrivebeskyttet: E-markedsføring er bryteren på Interesser-fanen
+  (`NoMailing` snudd, `inverted`). «Hjemmel - …» er hjemmelen til samtykket i `Consents` med
+  `ConsentPurposeKey` som begynner med `EMARKET` (i SuperOffice `EMARKETING`) / `STORE`, ellers
+  «Ikke registrert» (bekreftet i Cust30460 16.10). Feltene er merket «Kun visning - endres på kortet» (`readOnly`). Bryteren og samtykket er to
+  forskjellige ting: bryteren kan være på uten registrert samtykke. Hjemmelens navn hentes fra MDO-listen
+  `legalbase` via `LegalBaseId`. Abonnementene (`ShipmentTypes`) vises ikke. Skjult i katalogen: Mellomnavn, Kategori, Bransje, Land, Supportkontakt, Nummer
   (`PersonNumber`), Notat. Udef fra arkivet `Person` / `personUdef/`. Utvalg: tabell 6 (ikke bekreftet).
 - **Prosjekt:** Navn, Prosjektnummer, Ansvarlig (`associate`), Type (`projecttype`), Status
   (`projectstatus`), Beskrivelse (skjult). Skjult i katalogen: Sluttdato (`EndDate`), Ferdig
@@ -140,7 +152,7 @@ En MDO-liste som ikke kan leses, gir bare tom liste i sitt eget felt (`EntityAge
 
 - Deployet til Cust30460 med lagring på, og web panel er lagt inn for Firma, Person, Prosjekt, Salg og Sak.
 - Prosjekt er bekreftet: Navn, Prosjektnummer, Ansvarlig, Type og Status vises og lagres.
-- Typesjekk, 32 tester og bygg er grønne.
+- Typesjekk, 36 tester og bygg er grønne.
 - Katalogen med standardfelt og Kontaktperson på sak er testet i demo, ikke mot tenant ennå.
 - Bekreftet i Cust30460: Org.nr på firma låses av orgnr-triggeren. Sak (kategori-triggeren) er ikke sjekket.
 

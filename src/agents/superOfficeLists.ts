@@ -122,6 +122,18 @@ export async function fetchUdefColumns(agent: SuperOfficeAgent, provider: string
     });
 }
 
+/** The name of every column of an archive provider, in the user's language, by column name. */
+export async function fetchColumnLabels(agent: SuperOfficeAgent, provider: string): Promise<Record<string, string>> {
+  const response = await agent.Request({
+    method: "POST",
+    endpoint: "/api/v1/Agents/Archive/GetAvailableColumns",
+    body: { ProviderName: provider },
+    headers: restApiDefaultHeaders()
+  });
+  const columns = (await response.json()) as { Name: string; DisplayName: string }[];
+  return Object.fromEntries(columns.filter((column) => column.DisplayName).map((column) => [column.Name, tidyLabel(column.DisplayName)]));
+}
+
 /** The persons on a company, by name. */
 export async function fetchPersonsOnContact(agent: SuperOfficeAgent, contactId: number): Promise<ListItem[]> {
   if (!contactId) return [];

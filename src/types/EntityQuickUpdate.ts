@@ -34,6 +34,22 @@ export interface EntityFieldDefinition extends FieldDefinition {
    * company follows the contact person, so picking another company empties the person until one is picked.
    */
   personsFor?: string;
+  /**
+   * The field's column in the entity's label archive (EntityConfig.labelProvider), e.g. "position". The
+   * panel shows the column's name from SuperOffice, so labels are SuperOffice's own; label is the fallback.
+   */
+  archiveColumn?: string;
+  /** For a checkbox whose property holds the opposite: E-markedsføring is on when NoMailing is false. */
+  inverted?: boolean;
+  /** Shown, never changed in the panel. */
+  readOnly?: boolean;
+  /**
+   * A consent on the person (Personvern), by its purpose key, e.g. "EMARKET" (E-markedsføring) or "STORE"
+   * (Salg og kundeservice). The value is the id of its legal base in the MDO list "legalbase".
+   */
+  consentPurpose?: string;
+  /** Shown in the editor when the field has no value, e.g. "Ikke registrert". */
+  emptyText?: string;
   /** An extra field (x_...), kept in CustomFields under this name, e.g. "x_product". */
   customField?: string;
   /**
@@ -52,6 +68,8 @@ export interface EntityConfig {
   noun: { indefinite: string; definite: string; plural: string };
   /** The REST entity, as in /api/v1/<restEntity>/{id}. */
   restEntity: string;
+  /** The archive provider whose column names are the fields' labels (see EntityFieldDefinition.archiveColumn). */
+  labelProvider?: string;
   /**
    * The properties that say when and by whom the entity was last saved, used to notice someone else's
    * save. Default UpdatedDate and UpdatedBy (an associate with FullName).
@@ -130,6 +148,8 @@ export interface EntityDataSource {
   GetOptions(): Promise<Record<string, ListItem[]>>;
   /** The user-defined and extra fields on the entity, as field definitions, found in SuperOffice. */
   GetCustomFieldDefinitions(): Promise<EntityFieldDefinition[]>;
+  /** SuperOffice's own labels for the built-in fields, by field key, in the user's language. */
+  GetFieldLabels(): Promise<Record<string, string>>;
   GetCurrentAssociateId(): Promise<number>;
   /** The users, for picking whose list to work through. */
   GetAssociates(): Promise<ListItem[]>;

@@ -98,7 +98,7 @@
     size="small"
     filterable
     clearable
-    :placeholder="disabled ? '-' : 'Velg...'"
+    :placeholder="placeholder ?? (disabled ? '-' : 'Velg...')"
     no-data-text="Ingen verdier"
     no-match-text="Ingen treff"
     :disabled="disabled"
@@ -116,6 +116,8 @@
     kind: FieldKind;
     options: ListItem[];
     disabled?: boolean;
+    /** Shown in a list with no value, instead of "Velg...". */
+    placeholder?: string;
     /** Only used by the searched kinds: "project", "contact" and (when given) "person". */
     search?: (query: string) => Promise<ListItem[]>;
   }>();

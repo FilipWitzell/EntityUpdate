@@ -12,7 +12,17 @@ function person(id: number, ownerId: number, firstname: string, lastname: string
     meta: company,
     updatedAt: "2026-10-01T08:00:00",
     updatedBy: "Per Hansen",
-    values: { firstname, lastname, title: null, positionId: null, associateId: ownerId, retired: 0, ...values }
+    values: {
+      firstname,
+      lastname,
+      title: null,
+      positionId: null,
+      retired: 0,
+      emarketing: 1,
+      "consent:EMARKET": null,
+      "consent:STORE": 6,
+      ...values
+    }
   };
 }
 
@@ -24,7 +34,12 @@ export const PERSON_DEMO: EntityDemoData = {
       { id: 2, name: "Kari Nordmann" },
       { id: 3, name: "Ola Nordmann" }
     ],
-    position: [
+    legalbase: [
+      { id: 1, name: "Samtykke" },
+      { id: 6, name: "Berettiget interesse" },
+      { id: 7, name: "Trukket tilbake" }
+    ],
+    perspos: [
       { id: 1, name: "Daglig leder" },
       { id: 2, name: "Økonomisjef" },
       { id: 3, name: "IT-ansvarlig" },
