@@ -181,7 +181,7 @@
   import { ENTITIES, ENTITY_DEMOS } from "@/config/entities";
   import { applyLayout, completeLayout, withStandardMinimum } from "@/config/fieldLayout";
   import { optionListKey } from "@/config/entityValues";
-  import { jumpTo, refreshSuperOffice } from "@/services/so-cross-messaging";
+  import { jumpTo } from "@/services/so-cross-messaging";
   import { cardIsBusy, readCardState } from "@/services/superOfficeCard";
   import { IN_DEV_MODE, SUPEROFFICE_URL } from "@/superoffice-config/superoffice-config";
   import { DEV_SUPEROFFICE_URL } from "@/superoffice-config/superoffice-url";
@@ -651,24 +651,16 @@
   }
 
   /**
-   * Makes the SuperOffice card show the saved values. The card already showing this record is reloaded,
-   * like pressing F5 - opening it again through SoProtocol does not reload a ticket card. Any other record
-   * is opened on the card. Failures are only logged: the save has already succeeded.
+   * Makes the SuperOffice card show the saved values, by opening the record on it through SoProtocol -
+   * that reloads a card already showing it too. The cross-messaging "refresh" command does nothing in
+   * today's SuperOffice. Failures are only logged: the save has already succeeded.
    */
   function showSavedOnCard(id: number) {
-    if (id !== contextId.value) {
-      openCard(id);
-      return;
-    }
-    if (cardIsBusy()) {
+    if (id === contextId.value && cardIsBusy()) {
       ElMessage.info("Kortet er ikke lastet på nytt, fordi noe er under arbeid der. Trykk Oppdater i SuperOffice når du er klar.");
       return;
     }
-    try {
-      refreshSuperOffice();
-    } catch (e) {
-      console.warn("Could not refresh the card:", e);
-    }
+    openCard(id);
   }
 
   /**
@@ -905,6 +897,11 @@
     }
 
     .field-grid-header .cell-current {
+      display: none;
+    }
+
+    /* The value is in the editor already; under the label it shows only what a changed field was. */
+    .field-row:not(.changed):not(.missing):not(.activity-row) .cell-current {
       display: none;
     }
 

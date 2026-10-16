@@ -46,8 +46,10 @@ Firma, Person, Prosjekt, Sak og Salg. Startet som kopi av SaleUpdate
 - Kortet er i redigeringsmodus («Lagre» og «Avbryt» vises): panelet lagrer ikke posten som står på kortet.
 - Noen skriver (tekst i en editor eller et tekstfelt), eller vinduet kan ikke leses: panelet verken laster
   kortet på nytt eller flytter det til en annen post. Lagring i panelet går likevel.
-- Etter lagring lastes kortet på nytt med `refresh` når det viser samme post (SoProtocol laster ikke en
-  sak på nytt), ellers åpnes posten med SoProtocol.
+- Etter lagring åpnes posten på kortet med SoProtocol (`jumpTo(cardProtocol(id))`). Det laster også et
+  kort som allerede viser posten (bekreftet på firma, person og prosjekt 16.10). Sak lastes bare på nytt
+  når adressen er ny, så sakens SoProtocol har `&reload=<tid>` (bekreftet 16.10). Cross-messaging-kommandoen `refresh` gjør
+  ingenting i dagens SuperOffice, og brukes ikke lenger.
 
 ## Triggere i SuperOffice
 
@@ -154,13 +156,7 @@ En MDO-liste som ikke kan leses, gir bare tom liste i sitt eget felt (`EntityAge
    (`Person`-arkivet, `fullName contains`) virker.
 6. At panelet lastes på nytt og finner riktig kort når man bytter kort i SuperOffice. Hvis ikke,
    må panelet sjekke adressen på nytt når det får fokus.
-7. **Åpen feil (15.10):** kortet til venstre lastes ikke på nytt etter lagring (sett på firma, Bransje).
-   Brukeren mener det virket 14.10, før kortvakten (`services/superOfficeCard.ts`, commit fbdf0d7) kom.
-   Mest sannsynlig ser kortvakten feilaktig kortet som opptatt (et felt med tekst e.l.), og
-   `showSavedOnCard` hopper over `refresh`. Neste steg: få linjen «The SuperOffice card looks busy
-   because of: …» fra panelets konsoll etter en lagring, og se om den blå meldingen «Kortet er ikke
-   lastet på nytt …» kom. Først hvis kortvakten ikke er årsaken: test `postMessage({ command: "refresh" }, "*")`
-   i SuperOffice-fanens konsoll.
+7. (Løst og bekreftet 16.10: kortet lastes på nytt etter lagring med SoProtocol, også sak med `&reload=<tid>`.)
 8. Firma-feltet på sak er deployet, men ikke testet i SuperOffice: sjekk at kortet viser nytt firma
    etter at ny person er lagret.
 

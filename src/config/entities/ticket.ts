@@ -11,7 +11,8 @@ export const TICKET: EntityConfig = {
   restEntity: "Ticket",
   beforeSaveEvent: "SalesBeforeSaveTicket",
   updatedAtProperty: "LastChanged",
-  cardProtocol: (id) => `ticket.main?ticket_id=${id}`,
+  // A ticket card already showing the ticket is reloaded only when the address is new, hence the reload value.
+  cardProtocol: (id) => `ticket.main?ticket_id=${id}&reload=${Date.now()}`,
   titleOf: (ticket) => String(ticket.Title ?? ""),
   subtitleOf: (ticket) => `Sak #${ticket.TicketId}`,
   // The contact person's company: its persons are offered first when the contact person is changed.

@@ -1046,6 +1046,11 @@
       display: none;
     }
 
+    /* The value is in the editor already; under the label it shows only what a changed field was. */
+    .field-row:not(.changed):not(.missing):not(.activity-row) .cell-current {
+      display: none;
+    }
+
     .field-row {
       padding-top: 5px;
       padding-bottom: 5px;
